@@ -662,6 +662,7 @@
     var ptype = $('#sd-ptype').value;
     var minval = parseInt($('#sd-minval').value, 10) || 0;
     var year = $('#sd-year').value;
+    var built = $('#sd-built').value;
     var ownerMode = $('#sd-owner').value;
     var sort = $('#sd-sort').value;
     var isLand = ptype === 'land';
@@ -673,7 +674,13 @@
       where.push("LU='R'");
     }
     if (/^\d{5}$/.test(zip)) where.push("ZIPCODE='" + zip + "'");
-    if (year && !isLand) where.push("TRADATE<'" + year + "0101'");
+    if (!isLand) {
+      // Tenure: valid, non-blank transfer date so blanks can't leak in or top the ASC sort
+      if (year) where.push("TRADATE<'" + year + "0101'");
+      if (year || sort.indexOf('TRADATE') === 0) where.push("TRADATE>'10000101'");
+      // Year built: exclude modern rebuilds (a 2009 build on a 1986-held lot isn't a dated seller)
+      if (built) where.push("YEARBLT<'" + built + "'", "YEARBLT>'1000'");
+    }
     if (ownerMode === 'occupied') where.push("OOI='H'");
     if (ownerMode === 'landlord') where.push("OOI<>'H'");
     if (ownerMode === 'outofstate') where.push("OWNSTATE<>'MD'", "OWNSTATE<>''");
