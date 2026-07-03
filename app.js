@@ -1,0 +1,351 @@
+/* EEN Lead Engine — interactivity. No dependencies, all data in localStorage. */
+(function () {
+  'use strict';
+
+  var $ = function (s, ctx) { return (ctx || document).querySelector(s); };
+  var $$ = function (s, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(s)); };
+
+  var fmtUSD = function (n) {
+    if (!isFinite(n)) n = 0;
+    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  };
+
+  /* ---------- Toast ---------- */
+  var toastEl = $('#toast');
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  /* ---------- Mobile nav ---------- */
+  var sidebar = $('#sidebar');
+  var scrim = $('#scrim');
+  var navToggle = $('#nav-toggle');
+  function closeNav() {
+    sidebar.classList.remove('open');
+    scrim.classList.remove('show');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }
+  navToggle.addEventListener('click', function () {
+    var open = sidebar.classList.toggle('open');
+    scrim.classList.toggle('show', open);
+    navToggle.setAttribute('aria-expanded', String(open));
+  });
+  scrim.addEventListener('click', closeNav);
+  $$('[data-nav]').forEach(function (link) {
+    link.addEventListener('click', closeNav);
+  });
+
+  /* Active nav highlighting on scroll */
+  var sections = $$('section.panel');
+  var navLinks = $$('[data-nav]');
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        navLinks.forEach(function (l) {
+          l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  sections.forEach(function (s) { observer.observe(s); });
+
+  /* ---------- Signal Stacker ---------- */
+  var SIGNALS = [
+    { id: 'probate', name: 'Probate / estate filed', pts: 30, hint: 'Register of Wills match' },
+    { id: 'lispendens', name: 'Lis pendens / pre-foreclosure', pts: 30, hint: 'Court or land records' },
+    { id: 'divorce', name: 'Divorce filing (60+ days old)', pts: 25, hint: 'Case Search match' },
+    { id: 'taxdelinq', name: 'Tax delinquent / tax-sale list', pts: 25, hint: 'County finance list' },
+    { id: 'expired', name: 'Expired / withdrawn listing', pts: 20, hint: 'Agent intel or portal' },
+    { id: 'vacant', name: 'Vacant (USPS / observed)', pts: 20, hint: 'HUD data or drive-by' },
+    { id: 'absentee', name: 'Absentee / out-of-state owner', pts: 15, hint: 'SDAT mailing mismatch' },
+    { id: 'tenure', name: 'Owned 25+ years', pts: 15, hint: 'SDAT transfer date' },
+    { id: 'equity', name: 'High equity (60%+)', pts: 15, hint: 'Low or no mortgage on record' },
+    { id: 'lien', name: 'HOA / mechanic’s lien', pts: 15, hint: 'mdlandrec.net' },
+    { id: 'adjacency', name: 'Next to recent teardown', pts: 10, hint: 'Permit Radar adjacency' },
+    { id: 'maintenance', name: 'Visible deferred maintenance', pts: 10, hint: 'Drive-by observation' },
+    { id: 'seniorcredit', name: 'Senior / homeowner tax credit', pts: 10, hint: 'Assessment record flag' },
+    { id: 'codecase', name: 'Code enforcement case', pts: 10, hint: 'dataMontgomery' }
+  ];
+
+  var grid = $('#signal-grid');
+  SIGNALS.forEach(function (sig) {
+    var label = document.createElement('label');
+    label.className = 'signal';
+    label.innerHTML =
+      '<input type="checkbox" data-pts="' + sig.pts + '" id="sig-' + sig.id + '">' +
+      '<span><span class="s-name">' + sig.name + '</span>' +
+      '<span class="s-pts">+' + sig.pts + ' pts · ' + sig.hint + '</span></span>';
+    grid.appendChild(label);
+  });
+
+  var TIERS = [
+    { min: 60, cls: 'tier-hot', name: 'HOT', action: 'Founder contact within 24 hours: personal letter same day, DNC-scrubbed call, drive-by this week. This lead is a deal in motion.' },
+    { min: 40, cls: 'tier-warm', name: 'WARM', action: 'Enter the full 6-touch discreet sequence today and monitor monthly for new signals that promote it to Hot.' },
+    { min: 20, cls: 'tier-watch', name: 'WATCH', action: 'Quarterly keep-warm mail. Re-stack signals every 90 days — luxury motivation builds slowly, then all at once.' },
+    { min: 0, cls: 'tier-cold', name: 'COLD', action: 'Select the signals that apply to this property. Below 20, leave it on the source list and re-check next cycle.' }
+  ];
+
+  function renderScore() {
+    var total = 0;
+    $$('#signal-grid input').forEach(function (cb) {
+      cb.closest('.signal').classList.toggle('on', cb.checked);
+      if (cb.checked) total += parseInt(cb.getAttribute('data-pts'), 10);
+    });
+    var score = Math.min(100, total);
+    var tier = TIERS.filter(function (t) { return score >= t.min; })[0];
+    $('#score-num').textContent = score;
+    $('#score-bar').style.width = score + '%';
+    var tierEl = $('#score-tier');
+    tierEl.textContent = tier.name;
+    tierEl.className = 'tier ' + tier.cls;
+    $('#score-action').textContent = tier.action;
+    var scoreInput = $('#lead-score');
+    if (scoreInput) scoreInput.value = score || '';
+  }
+  grid.addEventListener('change', renderScore);
+  renderScore();
+
+  /* ---------- Deal Analyzer ---------- */
+  var modeTd = $('#mode-teardown');
+  var modeFl = $('#mode-flip');
+  var paneTd = $('#calc-teardown');
+  var paneFl = $('#calc-flip');
+  var results = $('#calc-results');
+  var mode = 'teardown';
+
+  function setMode(m) {
+    mode = m;
+    var teardown = m === 'teardown';
+    modeTd.classList.toggle('active', teardown);
+    modeFl.classList.toggle('active', !teardown);
+    modeTd.setAttribute('aria-selected', String(teardown));
+    modeFl.setAttribute('aria-selected', String(!teardown));
+    paneTd.hidden = !teardown;
+    paneFl.hidden = teardown;
+    renderCalc();
+  }
+  modeTd.addEventListener('click', function () { setMode('teardown'); });
+  modeFl.addEventListener('click', function () { setMode('flip'); });
+
+  function num(id) { return parseFloat($(id).value) || 0; }
+
+  function row(label, value, hero) {
+    return '<div class="row' + (hero ? ' hero' : '') + '"><span>' + label + '</span><span class="v">' + value + '</span></div>';
+  }
+
+  function renderCalc() {
+    var html = '';
+    if (mode === 'teardown') {
+      var lot = num('#td-lot');
+      var fee = num('#td-fee');
+      var costs = lot * num('#td-costs') / 100;
+      var margin = lot * num('#td-margin') / 100;
+      var mao = Math.max(0, lot - fee - costs - margin);
+      html += row('Builder pays for the lot', fmtUSD(lot));
+      html += row('− Transaction costs (double-close, transfer/recordation, title ×2)', fmtUSD(costs));
+      html += row('− Safety margin', fmtUSD(margin));
+      html += row('− Your fee', fmtUSD(fee));
+      html += row('Maximum allowable offer to seller', fmtUSD(mao), true);
+      html += row('Projected spread if contracted at max offer', fmtUSD(fee));
+    } else {
+      var arv = num('#fl-arv');
+      var pct = num('#fl-pct') / 100;
+      var rehab = num('#fl-rehab');
+      var ffee = num('#fl-fee');
+      var buyerPays = arv * pct - rehab;
+      var mao2 = Math.max(0, buyerPays - ffee);
+      html += row('After-repair value (ARV)', fmtUSD(arv));
+      html += row('× Investor discount (' + Math.round(pct * 100) + '% of ARV)', fmtUSD(arv * pct));
+      html += row('− Renovation estimate', fmtUSD(rehab));
+      html += row('= What a luxury flipper will pay', fmtUSD(buyerPays));
+      html += row('− Your fee', fmtUSD(ffee));
+      html += row('Maximum allowable offer to seller', fmtUSD(mao2), true);
+    }
+    results.innerHTML = html;
+  }
+  $$('#calc-teardown input, #calc-flip input').forEach(function (inp) {
+    inp.addEventListener('input', renderCalc);
+  });
+  renderCalc();
+
+  /* ---------- Copy templates ---------- */
+  $$('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = $('#' + btn.getAttribute('data-copy'));
+      navigator.clipboard.writeText(pre.textContent).then(function () {
+        toast('Letter copied — personalize every bracket before sending');
+      }, function () {
+        toast('Copy failed — select the text manually');
+      });
+    });
+  });
+
+  /* ---------- Pipeline Tracker (localStorage) ---------- */
+  var LS_LEADS = 'een-lead-engine:leads';
+  function loadLeads() {
+    try { return JSON.parse(localStorage.getItem(LS_LEADS)) || []; }
+    catch (e) { return []; }
+  }
+  function saveLeads(leads) { localStorage.setItem(LS_LEADS, JSON.stringify(leads)); }
+
+  var STATUSES = ['New', 'Contacted', 'Negotiating', 'Under Contract', 'Closed', 'Dead'];
+  var STATUS_CLASS = {
+    'New': 'st-new', 'Contacted': 'st-contacted', 'Negotiating': 'st-negotiating',
+    'Under Contract': 'st-contract', 'Closed': 'st-closed', 'Dead': 'st-dead'
+  };
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderLeads() {
+    var leads = loadLeads();
+    var tbody = $('#lead-rows');
+    var empty = $('#lead-empty');
+    tbody.innerHTML = '';
+    empty.style.display = leads.length ? 'none' : 'block';
+
+    leads.forEach(function (lead, i) {
+      var tr = document.createElement('tr');
+      var opts = STATUSES.map(function (s) {
+        return '<option' + (s === lead.status ? ' selected' : '') + '>' + s + '</option>';
+      }).join('');
+      tr.innerHTML =
+        '<td style="white-space:nowrap;">' + escapeHtml(lead.date) + '</td>' +
+        '<td>' + escapeHtml(lead.addr) + '</td>' +
+        '<td>' + escapeHtml(lead.source) + '</td>' +
+        '<td><span class="status-pill ' + (lead.score >= 60 ? 'st-negotiating' : 'st-new') + '">' + escapeHtml(lead.score || '–') + '</span></td>' +
+        '<td><select data-i="' + i + '" aria-label="Status for ' + escapeHtml(lead.addr) + '">' + opts + '</select></td>' +
+        '<td>' + escapeHtml(lead.note || '') + '</td>' +
+        '<td><button type="button" class="btn danger small" data-del="' + i + '">Remove</button></td>';
+      tbody.appendChild(tr);
+    });
+    renderStats(leads);
+  }
+
+  function renderStats(leads) {
+    leads = leads || loadLeads();
+    var hot = leads.filter(function (l) { return (parseInt(l.score, 10) || 0) >= 60; }).length;
+    var active = leads.filter(function (l) { return ['New', 'Contacted', 'Negotiating'].indexOf(l.status) !== -1; }).length;
+    var contract = leads.filter(function (l) { return ['Under Contract', 'Closed'].indexOf(l.status) !== -1; }).length;
+    $('#stat-total').textContent = leads.length;
+    $('#stat-hot').textContent = hot;
+    $('#stat-active').textContent = active;
+    $('#stat-contract').textContent = contract;
+  }
+
+  $('#lead-add').addEventListener('click', function () {
+    var addr = $('#lead-addr').value.trim();
+    if (!addr) { toast('Enter a property address first'); $('#lead-addr').focus(); return; }
+    var leads = loadLeads();
+    leads.unshift({
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      addr: addr,
+      source: $('#lead-source').value,
+      score: $('#lead-score').value,
+      status: 'New',
+      note: $('#lead-note').value.trim()
+    });
+    saveLeads(leads);
+    $('#lead-addr').value = '';
+    $('#lead-note').value = '';
+    renderLeads();
+    toast('Lead added to pipeline');
+  });
+
+  $('#lead-rows').addEventListener('change', function (e) {
+    var sel = e.target.closest('select[data-i]');
+    if (!sel) return;
+    var leads = loadLeads();
+    leads[parseInt(sel.getAttribute('data-i'), 10)].status = sel.value;
+    saveLeads(leads);
+    renderLeads();
+  });
+
+  $('#lead-rows').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-del]');
+    if (!btn) return;
+    var i = parseInt(btn.getAttribute('data-del'), 10);
+    var leads = loadLeads();
+    if (!confirm('Remove "' + leads[i].addr + '" from the pipeline?')) return;
+    leads.splice(i, 1);
+    saveLeads(leads);
+    renderLeads();
+    toast('Lead removed');
+  });
+
+  $('#lead-export').addEventListener('click', function () {
+    var leads = loadLeads();
+    if (!leads.length) { toast('Nothing to export yet'); return; }
+    var head = 'Date,Address,Source,Score,Status,Note\n';
+    var csv = head + leads.map(function (l) {
+      return [l.date, l.addr, l.source, l.score, l.status, l.note].map(function (v) {
+        return '"' + String(v || '').replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'een-pipeline-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Pipeline exported as CSV');
+  });
+
+  /* ---------- Compliance checklist (localStorage) ---------- */
+  var LS_CHECKS = 'een-lead-engine:compliance';
+  var CHECKS = [
+    { name: 'Attorney-drafted contract set in use', desc: 'Purchase contract, assignment agreement, and both § 10-715 disclosure forms drafted or reviewed by a Maryland real estate attorney.' },
+    { name: 'Property scope confirmed', desc: 'Verify: is this owner-occupied residential, 4 or fewer units? If yes, § 10-715 applies in full.' },
+    { name: 'Seller disclosure delivered BEFORE contract signing', desc: 'Written disclosure of your intent to assign or sell your equitable interest, delivered and acknowledged before the seller signs.' },
+    { name: 'Title-conveyance disclosure included', desc: 'Disclosure states you may not be able to convey title to the property yourself.' },
+    { name: 'Buyer disclosure delivered BEFORE assignment', desc: 'Written disclosure to the end buyer/assignee before the assignment is completed.' },
+    { name: 'Signed copies archived', desc: 'Both signed disclosures stored with the deal file — they are your defense against rescission.' },
+    { name: 'Exit structure decided', desc: 'Assignment vs. double closing vs. novation chosen deliberately; transactional funding confirmed if double-closing.' },
+    { name: 'Marketing claims audit', desc: 'No advertising language that implies you are a licensed broker; DNC scrubbing on any called numbers.' },
+    { name: 'Inspection-period exit intact', desc: 'Contract retains a clean contingency exit if dispo fails — never let a luxury contract go hard without a confirmed buyer.' }
+  ];
+
+  function loadChecks() {
+    try { return JSON.parse(localStorage.getItem(LS_CHECKS)) || {}; }
+    catch (e) { return {}; }
+  }
+
+  var checkList = $('#check-list');
+  function renderChecks() {
+    var state = loadChecks();
+    checkList.innerHTML = '';
+    CHECKS.forEach(function (c, i) {
+      var done = !!state[i];
+      var label = document.createElement('label');
+      label.className = 'check-item' + (done ? ' done' : '');
+      label.innerHTML =
+        '<input type="checkbox" data-ci="' + i + '"' + (done ? ' checked' : '') + '>' +
+        '<span><span class="c-name">' + c.name + '</span><br><span class="c-desc">' + c.desc + '</span></span>';
+      checkList.appendChild(label);
+    });
+  }
+  checkList.addEventListener('change', function (e) {
+    var cb = e.target.closest('input[data-ci]');
+    if (!cb) return;
+    var state = loadChecks();
+    state[cb.getAttribute('data-ci')] = cb.checked;
+    localStorage.setItem(LS_CHECKS, JSON.stringify(state));
+    renderChecks();
+  });
+  $('#check-reset').addEventListener('click', function () {
+    if (!confirm('Reset the compliance checklist for a new deal?')) return;
+    localStorage.removeItem(LS_CHECKS);
+    renderChecks();
+    toast('Checklist reset');
+  });
+
+  renderChecks();
+  renderLeads();
+})();

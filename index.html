@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EEN Lead Engine — Empower Estates Network's private-client lead intelligence system for luxury off-market acquisitions in Maryland and the DMV.">
+  <meta property="og:title" content="EEN Lead Engine — Private Client Intelligence">
+  <meta property="og:description" content="Finding the luxury sellers nobody else can find. Empower Estates Network.">
+  <title>EEN Lead Engine — Private Client Intelligence</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hubot+Sans:ital,wght@0,200..900;1,200..900&family=Julius+Sans+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Mobile top bar -->
+  <header class="topbar">
+    <img src="een-logo-wide.png" alt="Empower Estates Network">
+    <button type="button" class="topbar__toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </header>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="shell">
+    <!-- Sidebar navigation -->
+    <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar__logo">
+        <img src="een-logo-wide.png" alt="Empower Estates Network logo">
+      </div>
+      <p class="sidebar__tag">Lead Engine · Private Client</p>
+
+      <a class="nav-link active" href="#command" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        Command Center
+      </a>
+      <a class="nav-link" href="#engines" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/></svg>
+        Lead Source Engines
+      </a>
+      <a class="nav-link" href="#stacker" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Signal Stacker
+      </a>
+      <a class="nav-link" href="#analyzer" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="16" y1="10" x2="16" y2="10.01"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+        Deal Analyzer
+      </a>
+      <a class="nav-link" href="#sequences" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        Marketing Sequences
+      </a>
+      <a class="nav-link" href="#pipeline" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Pipeline Tracker
+      </a>
+      <a class="nav-link" href="#compliance" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+        MD Compliance
+      </a>
+
+      <div class="sidebar__foot">
+        Empower Estates Network<br>
+        <a href="https://empowerestatesnetwork.com" target="_blank" rel="noopener noreferrer">empowerestatesnetwork.com</a><br>
+        Internal tool · Co-founders: Kiran Sen &amp; Alessandro Marra
+      </div>
+    </nav>
+
+    <main class="main" id="main-content">
+
+      <!-- ============ COMMAND CENTER ============ -->
+      <section class="panel reveal" id="command">
+        <span class="eyebrow">Empower Estates Network · Private Client Division</span>
+        <h1>The Lead Engine</h1>
+        <p class="lede">A system for finding luxury sellers in Maryland <em>before they ever talk to an agent</em> — built on public records nobody else mines, life-event signals nobody else stacks, and a student taskforce nobody else has.</p>
+        <div class="accent-line"></div>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this system works</p>
+          <p>Most wholesalers buy the same skip-traced lists from the same software and mail the same postcards. This engine works differently: it <strong>originates leads from primary public records</strong> — probate filings, permit data, land records, ownership tenure — that require human research to extract, which is exactly what EEN's student taskforce provides at a cost competitors can't match.</p>
+          <p>The workflow runs in five stages, left to right. Every lead flows through the same path: it is <strong>sourced</strong> by one of the eight engines, <strong>stacked</strong> against other motivation signals, <strong>scored</strong> into a priority tier, put into a <strong>sequence</strong> matched to its situation, and tracked to <strong>close</strong> — with Maryland § 10-715 compliance checked before any assignment.</p>
+        </div>
+
+        <div class="flow">
+          <div class="flow-step"><span class="n">01</span><h3>Source</h3><p>Eight proprietary engines pull seller signals from public records competitors ignore.</p></div>
+          <div class="flow-step"><span class="n">02</span><h3>Stack</h3><p>Each property is checked against every other signal list. Overlap = motivation.</p></div>
+          <div class="flow-step"><span class="n">03</span><h3>Score</h3><p>Signals convert to a 0–100 priority score with a prescribed next action.</p></div>
+          <div class="flow-step"><span class="n">04</span><h3>Sequence</h3><p>Hot leads get a founder call; the rest enter a 6-touch discreet mail campaign.</p></div>
+          <div class="flow-step"><span class="n">05</span><h3>Close</h3><p>Deal analyzer sets the max offer; dispo goes to the builder &amp; investor list.</p></div>
+        </div>
+
+        <div class="stat-row" aria-label="Live pipeline statistics">
+          <div class="stat-tile gold"><span class="num" id="stat-total">0</span><span class="lbl">Leads in pipeline</span></div>
+          <div class="stat-tile"><span class="num" id="stat-hot">0</span><span class="lbl">Hot (score 60+)</span></div>
+          <div class="stat-tile"><span class="num" id="stat-active">0</span><span class="lbl">Active conversations</span></div>
+          <div class="stat-tile"><span class="num" id="stat-contract">0</span><span class="lbl">Under contract / closed</span></div>
+        </div>
+        <p class="helper">Stats update automatically from the Pipeline Tracker below. Data is stored privately in this browser.</p>
+      </section>
+
+      <!-- ============ LEAD SOURCE ENGINES ============ -->
+      <section class="panel" id="engines">
+        <span class="eyebrow">Stage 01 · Source</span>
+        <h2 class="section-heading">Lead Source Engines</h2>
+        <p class="section-sub">Eight ways to find motivated luxury sellers that never appear on PropStream exports or anyone else's mailing list. Each card explains what the engine is, why competitors miss these leads, and the exact step-by-step plan to run it.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this section works</p>
+          <p>Every engine links directly to its live public data source and carries two tags: <strong>who runs it</strong> (student taskforce vs. founder) and <strong>cadence</strong> (how often it's pulled). Assign each engine to a specific intern as a named weekly deliverable. Expand "The Plan" on any card for the exact operating steps. Target price band: <strong>$700K–$1.5M</strong> in Bethesda, Chevy Chase, Potomac, Kensington, North Bethesda, plus Howard &amp; Anne Arundel luxury pockets.</p>
+        </div>
+
+        <div class="card-grid">
+
+          <!-- Engine 1 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+              <div><span class="k">Engine 01</span><h3>Probate Pipeline</h3></div>
+            </div>
+            <p class="desc">The highest-converting luxury list in Maryland — estates in administration where the personal representative needs to liquidate a $700K+ property, often from out of state.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Why nobody else finds these: probate leads never hit the MLS or list-broker software. They only exist in Register of Wills filings that must be pulled and cross-referenced by hand — free to access, expensive in labor. EEN's intern taskforce makes the labor cost near zero.</p>
+                <ol>
+                  <li><strong>Weekly pull (intern):</strong> search new estate filings in Montgomery, Howard &amp; Anne Arundel counties on the Register of Wills estate search.</li>
+                  <li><strong>Cross-reference (intern):</strong> look up each decedent's name in SDAT Real Property to find owned property. Keep only parcels assessed $600K+.</li>
+                  <li><strong>Qualify:</strong> flag estates where the personal representative's mailing address is out of county/state — distance = motivation to sell as-is.</li>
+                  <li><strong>Skip trace</strong> the personal representative and enter the lead in the Pipeline Tracker with source "Probate."</li>
+                  <li><strong>Sequence:</strong> send the handwritten-style condolence-appropriate letter (Marketing Sequences → Template A). Never cold-call a fresh estate.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://registers.maryland.gov/main/search.html" target="_blank" rel="noopener noreferrer">MD Register of Wills — Estate Search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://casesearch.courts.state.md.us/casesearch/" target="_blank" rel="noopener noreferrer">MD Judiciary Case Search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx" target="_blank" rel="noopener noreferrer">SDAT Real Property Search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Student taskforce</span><span class="badge">Weekly pull</span><span class="badge">Highest conversion</span></div>
+          </div>
+
+          <!-- Engine 2 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+              <div><span class="k">Engine 02</span><h3>Teardown Permit Radar</h3></div>
+            </div>
+            <p class="desc">Mines Montgomery County demolition &amp; new-construction permits to find two things at once: the <strong>builders who are your cash buyers</strong>, and the <strong>neighbors who are your next sellers</strong>.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">The innovation is "permit adjacency": when a builder tears down one 1950s rambler on a street in Bethesda 20817, every similar dated house on that street just became a proven teardown lot with a proven buyer — before any list software knows it. You market to the neighbors of construction sites.</p>
+                <ol>
+                  <li><strong>Monthly pull (intern):</strong> export demolition + new single-family construction permits from dataMontgomery for zips 20814/15/16/17, 20854, 20895.</li>
+                  <li><strong>Buyer side (founder):</strong> the permit applicant is an active cash builder — call them, get their buy-box, add to the dispo list. Ten builder relationships = guaranteed exits.</li>
+                  <li><strong>Seller side (intern):</strong> pull every same-vintage house within 2 blocks of each permit from SDAT; filter to 20+ year ownership.</li>
+                  <li><strong>Mail the adjacency letter:</strong> "A builder just paid $X for the lot at [street]. We can get you a comparable cash offer without listing." (Template B variant.)</li>
+                  <li><strong>Track</strong> which streets produce responses; double down on active corridors.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://data.montgomerycountymd.gov/" target="_blank" rel="noopener noreferrer">dataMontgomery — Permit Data <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://permittingservices.montgomerycountymd.gov/" target="_blank" rel="noopener noreferrer">Montgomery DPS ePermits <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx" target="_blank" rel="noopener noreferrer">SDAT Real Property <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Builds buyer list too</span><span class="badge">Monthly pull</span><span class="badge">Unique to EEN</span></div>
+          </div>
+
+          <!-- Engine 3 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div><span class="k">Engine 03</span><h3>Long-Tenure Equity Map</h3></div>
+            </div>
+            <p class="desc">Owners who bought in Potomac or Chevy Chase 25–50 years ago, hold near-100% equity, and want out of a 4,000 sq ft house — without staging, showings, or strangers walking through.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Everyone filters for "high equity." Almost nobody stacks tenure + age signals + lot value, because it takes parcel-level research. A 1978 purchase date plus a homeowner's tax credit application is a downsizing conversation waiting to happen — and these owners answer professional letters, not postcards.</p>
+                <ol>
+                  <li><strong>Quarterly build (intern):</strong> in the target zips, list parcels with transfer dates before 2000 and assessed value $700K+ via SDAT.</li>
+                  <li><strong>Refine:</strong> flag parcels where land value is a high share of total assessment (teardown economics) and where the dwelling is original/dated (street view check).</li>
+                  <li><strong>Signal boost:</strong> cross-check the senior/homeowners' tax credit rolls — an application signals fixed income in an expensive house.</li>
+                  <li><strong>Mail Template B</strong> (the discreet downsizer letter) on heavy stock, signed by a named co-founder, 5–7 touches over 6 months.</li>
+                  <li><strong>Offer both paths:</strong> cash as-is now, or quiet off-market sale on their timeline. Certainty is the product.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx" target="_blank" rel="noopener noreferrer">SDAT Real Property <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://dat.maryland.gov/realproperty/Pages/Homeowners%27-Property-Tax-Credit-Program.aspx" target="_blank" rel="noopener noreferrer">MD Homeowners' Tax Credit <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Student taskforce</span><span class="badge">Quarterly build</span><span class="badge">Patient list</span></div>
+          </div>
+
+          <!-- Engine 4 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+              <div><span class="k">Engine 04</span><h3>Silent Distress Signals</h3></div>
+            </div>
+            <p class="desc">Wealthy-zip distress that never looks like distress: property tax delinquency on $1M+ homes, lis pendens filings on jumbo mortgages, and HOA/mechanic's liens in land records.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Foreclosure lists are picked over at the entry level, but almost no wholesaler works the luxury end — the list is short, the addresses are intimidating, and the owners demand discretion. That's the moat. A Potomac owner two years behind on taxes will never call a "we buy houses" number, but they will take a confidential meeting.</p>
+                <ol>
+                  <li><strong>Annual + monthly (intern):</strong> pull the county tax sale list each spring; filter to assessed value $700K+. Monitor monthly for new lis pendens in Case Search.</li>
+                  <li><strong>Land records (intern):</strong> search mdlandrec.net for HOA liens and mechanic's liens recorded against target-zip parcels.</li>
+                  <li><strong>Stack:</strong> any parcel with 2+ distress signals goes straight to the Hot tier.</li>
+                  <li><strong>Founder-only outreach:</strong> these owners get a personal, private letter and a direct phone line — never a mass-mail piece. Frame: "solve it quietly, on your terms, before deadlines force worse options."</li>
+                  <li><strong>Move fast:</strong> tax sale and foreclosure timelines are fixed; speed-to-lead decides who wins these.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://www.montgomerycountymd.gov/finance/taxes/tax-sale-info.html" target="_blank" rel="noopener noreferrer">Montgomery County Tax Sale <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://mdlandrec.net/" target="_blank" rel="noopener noreferrer">MD Land Records <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://casesearch.courts.state.md.us/casesearch/" target="_blank" rel="noopener noreferrer">MD Judiciary Case Search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Founder outreach</span><span class="badge">Monthly monitor</span><span class="badge">High urgency</span></div>
+          </div>
+
+          <!-- Engine 5 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+              <div><span class="k">Engine 05</span><h3>Expired Luxury Recon</h3></div>
+            </div>
+            <p class="desc">Luxury listings sit 60+ days and expire at far higher rates than the rest of the market. Every expired or withdrawn $800K+ listing is a seller who already proved motivation — and just failed publicly.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Expired data lives in Bright MLS, which wholesalers can't access — so they skip it. EEN's move: partner with agents instead of competing. The agent keeps a payday, the seller gets a quiet exit, EEN gets deal flow nobody mails.</p>
+                <ol>
+                  <li><strong>Build the agent alliance (founder):</strong> identify 10–15 listing agents in the target zips carrying stale $800K+ inventory (public portals show days-on-market).</li>
+                  <li><strong>The pitch:</strong> "When your listing expires or your seller is done with showings, bring it to us — we'll make a cash/as-is offer and you stay in the deal as the referring or dual-fee agent."</li>
+                  <li><strong>Monitor (intern):</strong> track 90+ day listings weekly on public portals as the early-warning list.</li>
+                  <li><strong>Direct mail:</strong> once a listing visibly disappears without a sale record, send Template C ("your listing expired — there's a private alternative").</li>
+                  <li><strong>Long game:</strong> consider one co-founder getting licensed for direct MLS/expired access and legitimacy.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://www.brightmls.com/" target="_blank" rel="noopener noreferrer">Bright MLS (via agent partners) <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Agent partnerships</span><span class="badge">Weekly monitor</span><span class="badge">Proven motivation</span></div>
+          </div>
+
+          <!-- Engine 6 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></div>
+              <div><span class="k">Engine 06</span><h3>Absentee &amp; Vacancy Sweep</h3></div>
+            </div>
+            <p class="desc">Luxury homes whose owners are somewhere else: SDAT mailing address ≠ property address, USPS-flagged vacancies, code-enforcement complaints, and deferred maintenance spotted on drive-bys.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Driving for dollars is a $150K-neighborhood tactic that nobody applies to Potomac — interns with a route map and a phone camera change that. A neglected $1.2M colonial with an out-of-state tax bill is one of the strongest signals in existence, and it appears on no purchasable list with this freshness.</p>
+                <ol>
+                  <li><strong>List build (intern):</strong> filter SDAT for target-zip parcels where the owner's mailing address is out of state or a trust/LLC with a distant address.</li>
+                  <li><strong>Vacancy check:</strong> cross-reference HUD's USPS vacancy dataset by census tract; flag matches.</li>
+                  <li><strong>Drive routes (interns, weekly):</strong> assigned street routes through target neighborhoods logging deferred maintenance — tarped roofs, dead lawns, full mailboxes, unshoveled snow.</li>
+                  <li><strong>Code complaints (intern):</strong> pull dataMontgomery code-enforcement cases in target zips — a violation on a luxury home means an overwhelmed or absent owner.</li>
+                  <li><strong>Stack &amp; mail:</strong> absentee + visual distress = Hot tier; absentee only = standard 6-touch sequence.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx" target="_blank" rel="noopener noreferrer">SDAT Real Property <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://www.huduser.gov/portal/datasets/usps.html" target="_blank" rel="noopener noreferrer">HUD USPS Vacancy Data <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://data.montgomerycountymd.gov/" target="_blank" rel="noopener noreferrer">dataMontgomery — Code Enforcement <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Student taskforce</span><span class="badge">Weekly routes</span><span class="badge">Fresh data edge</span></div>
+          </div>
+
+          <!-- Engine 7 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <div><span class="k">Engine 07</span><h3>Divorce Docket Miner</h3></div>
+            </div>
+            <p class="desc">Contested divorces in high-asset households almost always force a house sale — and both parties usually want it done fast, private, and without an open-house circus.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">Divorce filings are public in Maryland Case Search, but matching a case to a $1M+ marital home takes name-by-name SDAT cross-referencing that list vendors don't do at the county level. Handled with total discretion, this is a consistently underworked source.</p>
+                <ol>
+                  <li><strong>Monthly pull (intern):</strong> new absolute-divorce filings in Montgomery &amp; Howard County Circuit Courts via Case Search.</li>
+                  <li><strong>Cross-reference:</strong> match party names against SDAT ownership in target zips; keep joint-owned parcels $700K+.</li>
+                  <li><strong>Wait 60–90 days</strong> after filing before first contact — raw filings are too fresh; mid-process is when the sale decision lands.</li>
+                  <li><strong>Tone-matched letter:</strong> neutral, addressed to each party separately: "If selling the home becomes part of your next chapter, we buy privately — no showings, no signs, flexible timing."</li>
+                  <li><strong>Better path (founder):</strong> build referral relationships with 5–10 family-law attorneys in Bethesda/Rockville — one attorney can outproduce the whole list.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://casesearch.courts.state.md.us/casesearch/" target="_blank" rel="noopener noreferrer">MD Judiciary Case Search <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://sdat.dat.maryland.gov/RealProperty/Pages/default.aspx" target="_blank" rel="noopener noreferrer">SDAT Real Property <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Discretion critical</span><span class="badge">Monthly pull</span><span class="badge">60–90 day lag</span></div>
+          </div>
+
+          <!-- Engine 8 -->
+          <div class="card engine">
+            <div class="engine__head">
+              <div class="engine__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0-10-10"/><path d="M2 12h10v10"/><path d="m7 17 5-5"/></svg></div>
+              <div><span class="k">Engine 08</span><h3>Life-Event Referral Grid</h3></div>
+            </div>
+            <p class="desc">The professionals who learn about a luxury sale six months before anyone else: probate &amp; elder-law attorneys, family-law attorneys, financial advisors, CPAs, and senior-move managers.</p>
+            <details>
+              <summary><span class="chev">▸</span> The Plan — how it works</summary>
+              <div class="plan">
+                <p class="why">This is how luxury property actually trades in the DMV — through advisor whisper networks. It's the slowest engine to build and the most defensible: once an estate attorney trusts EEN, that channel can't be bought or copied by a competitor with software.</p>
+                <ol>
+                  <li><strong>Build the grid (founder):</strong> 40-person target list — 10 probate/elder-law attorneys, 10 family-law attorneys, 10 financial advisors/CPAs, 10 senior-move managers &amp; assisted-living placement services in Montgomery County.</li>
+                  <li><strong>Two coffees a week.</strong> The pitch: "When your client needs a discreet, as-is, fast sale that a public listing can't deliver, we're the private option — and we make you look good."</li>
+                  <li><strong>Give first:</strong> send them business (EEN clients need estate plans and advisors too); host a quarterly "off-market roundtable" breakfast.</li>
+                  <li><strong>Stay visible:</strong> monthly one-page email — a real (anonymized) case study of a quiet sale EEN closed.</li>
+                  <li><strong>Track every contact</strong> in the Pipeline Tracker with source "Referral Grid" and a last-touch date; no contact goes 45 days untouched.</li>
+                </ol>
+                <div class="src-links">
+                  <a href="https://www.msba.org/" target="_blank" rel="noopener noreferrer">Maryland State Bar — find attorneys <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                  <a href="https://www.linkedin.com/company/empower-estates-network/" target="_blank" rel="noopener noreferrer">EEN LinkedIn — outreach channel <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+                </div>
+              </div>
+            </details>
+            <div class="meta"><span class="badge gold">Founder-led</span><span class="badge">2 meetings/week</span><span class="badge">Compounding moat</span></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============ SIGNAL STACKER ============ -->
+      <section class="panel" id="stacker">
+        <span class="eyebrow">Stage 02–03 · Stack &amp; Score</span>
+        <h2 class="section-heading">Signal Stacker &amp; Lead Scorer</h2>
+        <p class="section-sub">One signal is a name on a list. Two overlapping signals is a lead. Three is a deal hiding in plain sight.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this tool works</p>
+          <p>When any engine surfaces a property, check it against <strong>every other engine's list</strong> before deciding what to do. Tick each signal that applies below — the tool computes a 0–100 motivation score and prescribes the exact next action and marketing sequence. The weighting reflects real conversion behavior: court-record events (probate, lis pendens, divorce) outweigh soft signals (tenure, deferred maintenance). Save the score with the lead in the Pipeline Tracker.</p>
+        </div>
+
+        <div class="card">
+          <div class="signal-grid" id="signal-grid" role="group" aria-label="Motivation signals"></div>
+          <div class="score-readout">
+            <div>
+              <span class="score" id="score-num">0</span>
+              <span class="muted" style="font-size:0.85rem;">/100</span>
+            </div>
+            <div class="meter" aria-hidden="true"><div id="score-bar"></div></div>
+            <div>
+              <div class="tier" id="score-tier">Cold</div>
+              <div class="action" id="score-action">Select the signals that apply to this property.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ DEAL ANALYZER ============ -->
+      <section class="panel" id="analyzer">
+        <span class="eyebrow">Stage 05 · Close</span>
+        <h2 class="section-heading">Luxury Deal Analyzer</h2>
+        <p class="section-sub">Sets your maximum allowable offer so a $1M+ contract never becomes a contract you can't move.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this tool works</p>
+          <p><strong>Teardown mode</strong> anchors your offer to what a builder pays for the <em>lot</em> (from the Permit Radar's comparable lot sales) — not retail comps, which overprice teardowns. <strong>Flip mode</strong> uses the classic ARV formula with luxury-adjusted discounts (high-end flippers work on 75–80% of ARV, not the 70% entry-level rule). Both modes reserve your target fee and a safety margin first, so the number on the contract already protects the spread. At these price points, plan on a <strong>double closing or novation</strong> — a five-figure assignment fee visible on a settlement statement kills deals.</p>
+        </div>
+
+        <div class="card">
+          <div class="mode-switch" role="tablist" aria-label="Analyzer mode">
+            <button type="button" id="mode-teardown" class="active" role="tab" aria-selected="true">Teardown / Lot</button>
+            <button type="button" id="mode-flip" role="tab" aria-selected="false">Luxury Flip</button>
+          </div>
+
+          <div class="calc-grid" id="calc-teardown">
+            <div>
+              <label class="f-label" for="td-lot">What a builder pays for the lot ($)</label>
+              <input type="number" id="td-lot" inputmode="numeric" value="950000" min="0" step="10000">
+              <p class="helper">From Permit Radar: recent teardown acquisition prices on comparable streets.</p>
+            </div>
+            <div>
+              <label class="f-label" for="td-fee">Your target fee ($)</label>
+              <input type="number" id="td-fee" inputmode="numeric" value="50000" min="0" step="5000">
+              <p class="helper">Luxury spreads run $30K–$100K+. Don't price like a $10K entry deal.</p>
+            </div>
+            <div>
+              <label class="f-label" for="td-costs">Transaction costs (%)</label>
+              <input type="number" id="td-costs" inputmode="decimal" value="3" min="0" max="15" step="0.5">
+              <p class="helper">Double-close costs: MD transfer/recordation taxes, title ×2, transactional funding.</p>
+            </div>
+            <div>
+              <label class="f-label" for="td-margin">Safety margin (%)</label>
+              <input type="number" id="td-margin" inputmode="decimal" value="5" min="0" max="25" step="1">
+              <p class="helper">Cushion for a thin buyer pool — luxury dispo takes longer.</p>
+            </div>
+          </div>
+
+          <div class="calc-grid" id="calc-flip" hidden>
+            <div>
+              <label class="f-label" for="fl-arv">After-repair value — ARV ($)</label>
+              <input type="number" id="fl-arv" inputmode="numeric" value="1400000" min="0" step="10000">
+              <p class="helper">What the renovated home sells for on this street.</p>
+            </div>
+            <div>
+              <label class="f-label" for="fl-pct">Investor discount (% of ARV)</label>
+              <input type="number" id="fl-pct" inputmode="decimal" value="77" min="50" max="90" step="1">
+              <p class="helper">Luxury flippers typically buy at 75–80% of ARV.</p>
+            </div>
+            <div>
+              <label class="f-label" for="fl-rehab">Renovation estimate ($)</label>
+              <input type="number" id="fl-rehab" inputmode="numeric" value="200000" min="0" step="10000">
+              <p class="helper">Luxury finishes run $100–300+/sq ft. Estimate high.</p>
+            </div>
+            <div>
+              <label class="f-label" for="fl-fee">Your target fee ($)</label>
+              <input type="number" id="fl-fee" inputmode="numeric" value="50000" min="0" step="5000">
+            </div>
+          </div>
+
+          <div class="result-rows" id="calc-results" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- ============ MARKETING SEQUENCES ============ -->
+      <section class="panel" id="sequences">
+        <span class="eyebrow">Stage 04 · Sequence</span>
+        <h2 class="section-heading">Marketing Sequences &amp; Templates</h2>
+        <p class="section-sub">Luxury sellers convert on touch four, not touch one. Every lead gets a sequence matched to its source — and nothing EEN sends looks like investor mail.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this system works</p>
+          <p>The brand rule: <strong>discretion, certainty, speed, as-is — never "we buy houses."</strong> Physical mail only on heavy stock with a real signature and a direct founder phone line; no postcards, no SMS blasts (TCPA risk), cold calls only on DNC-scrubbed Hot-tier leads. The 6-touch cadence below runs over ~6 months; the three templates cover the highest-value situations. Personalize every bracket before sending, then log the touch date in the Pipeline Tracker.</p>
+        </div>
+
+        <div class="card">
+          <h3>The 6-Touch Discreet Campaign</h3>
+          <div class="seq-timeline">
+            <div class="seq-step"><span class="when">Day 0</span><div class="what"><strong>Letter #1 — introduction.</strong><p>Source-matched template (A/B/C below). Heavy stock, hand-addressed envelope, first-class stamp.</p></div></div>
+            <div class="seq-step"><span class="when">Day 21</span><div class="what"><strong>Letter #2 — proof.</strong><p>One-page case study of a comparable quiet sale ("a Bowie homeowner chose a private sale — settled in 18 days").</p></div></div>
+            <div class="seq-step"><span class="when">Day 45</span><div class="what"><strong>Call #1 (Hot tier only).</strong><p>Founder calls DNC-scrubbed numbers. Script: consultative, zero pressure, offer a valuation not a pitch.</p></div></div>
+            <div class="seq-step"><span class="when">Day 75</span><div class="what"><strong>Letter #3 — market intel.</strong><p>"What buyers paid on your street this quarter" — genuinely useful data, EEN branded, soft close.</p></div></div>
+            <div class="seq-step"><span class="when">Day 120</span><div class="what"><strong>Letter #4 — the direct ask.</strong><p>"We'd like to make you an offer this month" with the Calendly link and direct line.</p></div></div>
+            <div class="seq-step"><span class="when">Day 180</span><div class="what"><strong>Letter #5 + quarterly loop.</strong><p>Final sequence letter, then the lead rolls to a quarterly keep-warm mailing until it responds or exits.</p></div></div>
+          </div>
+
+          <div class="template">
+            <div class="t-head"><h3>Template A — Probate / Estate</h3><button type="button" class="btn ghost small" data-copy="tpl-a">Copy letter</button></div>
+            <pre id="tpl-a">Dear [Name],
+
+I'm writing to you with condolences, and with respect for what you're
+managing right now as the representative of the estate of [Decedent Name].
+
+My name is [Kiran Sen / Alessandro Marra], co-founder of Empower Estates
+Network, a Maryland real estate firm. When settling an estate involves a
+property like [Property Address], families often want one thing above all:
+a straightforward path that doesn't add months of showings, repairs, and
+uncertainty to an already difficult season.
+
+That is what we provide. We purchase homes privately and as-is — no
+listing, no sign in the yard, no open houses — on whatever timeline serves
+the estate, whether that's three weeks or six months. You'd work directly
+with me, not a call center.
+
+If it would be useful, I'm glad to provide a written, no-obligation
+valuation of the property for your estate records — helpful even if you
+choose another path entirely.
+
+With respect,
+
+[Name], Co-Founder
+Empower Estates Network
+[Direct line] · empowerestatesnetwork.com</pre>
+          </div>
+
+          <div class="template">
+            <div class="t-head"><h3>Template B — Long-Tenure / Downsizer (&amp; Permit-Adjacency variant)</h3><button type="button" class="btn ghost small" data-copy="tpl-b">Copy letter</button></div>
+            <pre id="tpl-b">Dear [Name],
+
+You may have noticed the new construction at [nearby address / on your
+street]. A builder recently paid a premium for that property — and homes
+like yours on [Street Name] are commanding similar attention.
+
+My name is [Name], co-founder of Empower Estates Network, a Maryland real
+estate firm. We work with longtime homeowners in [Neighborhood] who want
+the value that buyers are paying right now, without the disruption of a
+public sale: no repairs, no staging, no strangers walking through your
+home, no sign in the yard.
+
+If you've thought about what comes next — downsizing, moving closer to
+family, or simply simplifying — I'd welcome a private conversation. We can
+give you a firm written offer and let you choose the closing date, even
+months out.
+
+No pressure, and complete discretion either way.
+
+Warm regards,
+
+[Name], Co-Founder
+Empower Estates Network
+[Direct line] · empowerestatesnetwork.com</pre>
+          </div>
+
+          <div class="template">
+            <div class="t-head"><h3>Template C — Expired Listing</h3><button type="button" class="btn ghost small" data-copy="tpl-c">Copy letter</button></div>
+            <pre id="tpl-c">Dear [Name],
+
+I noticed that [Property Address] recently came off the market. After
+months of showings and waiting, that's a frustrating place to land — and
+it usually says more about the process than the property.
+
+My name is [Name], co-founder of Empower Estates Network. We buy homes
+like yours directly: no relisting, no more showings, no price-drop
+negotiations played out in public. One private conversation, one written
+offer, and a closing date you control.
+
+Sellers choose us when certainty matters more than squeezing out the last
+dollar — though you may be surprised how close we come.
+
+If you'd like a firm offer this week, call me directly at [Direct line]
+or book a time at calendly.com/empowerestatesnet.
+
+Respectfully,
+
+[Name], Co-Founder
+Empower Estates Network
+empowerestatesnetwork.com</pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PIPELINE TRACKER ============ -->
+      <section class="panel" id="pipeline">
+        <span class="eyebrow">Operations</span>
+        <h2 class="section-heading">Pipeline Tracker</h2>
+        <p class="section-sub">Every sourced lead lives here, from first signal to settlement. Feeds the Command Center stats.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this tool works</p>
+          <p>Add a lead the moment an engine surfaces it — address, source engine, and the score from the Signal Stacker. Update the status as it moves. The operating rules: <strong>respond to any inbound within 5 minutes</strong> (speed-to-lead wins luxury too), Hot leads get founder contact within 24 hours, and no active lead goes 45 days without a logged touch. Data is stored in this browser via localStorage — private to this device, no server, nothing leaves the machine. Use Export to back up or move to a spreadsheet/CRM.</p>
+        </div>
+
+        <div class="card">
+          <div class="calc-grid">
+            <div>
+              <label class="f-label" for="lead-addr">Property address</label>
+              <input type="text" id="lead-addr" placeholder="9412 Fernwood Rd, Bethesda MD 20817" autocomplete="off">
+            </div>
+            <div>
+              <label class="f-label" for="lead-source">Source engine</label>
+              <select id="lead-source">
+                <option>Probate Pipeline</option>
+                <option>Teardown Permit Radar</option>
+                <option>Long-Tenure Equity Map</option>
+                <option>Silent Distress</option>
+                <option>Expired Luxury Recon</option>
+                <option>Absentee &amp; Vacancy</option>
+                <option>Divorce Docket</option>
+                <option>Referral Grid</option>
+                <option>Inbound / Website</option>
+              </select>
+            </div>
+            <div>
+              <label class="f-label" for="lead-score">Signal score (0–100)</label>
+              <input type="number" id="lead-score" min="0" max="100" step="5" placeholder="e.g. 65">
+              <p class="helper">Use the Signal Stacker above to compute it.</p>
+            </div>
+            <div>
+              <label class="f-label" for="lead-note">Note</label>
+              <input type="text" id="lead-note" placeholder="PR lives in Florida; est. $1.1M lot value" autocomplete="off">
+            </div>
+            <div class="full" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px;">
+              <button type="button" class="btn" id="lead-add">Add lead</button>
+              <button type="button" class="btn ghost" id="lead-export">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table aria-label="Lead pipeline">
+              <thead>
+                <tr><th>Added</th><th>Address</th><th>Source</th><th>Score</th><th>Status</th><th>Note</th><th><span class="sr-only">Actions</span></th></tr>
+              </thead>
+              <tbody id="lead-rows"></tbody>
+            </table>
+            <div class="empty-state" id="lead-empty">No leads yet. Run an engine, stack the signals, and log the first one above.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ COMPLIANCE ============ -->
+      <section class="panel" id="compliance">
+        <span class="eyebrow">Guardrails</span>
+        <h2 class="section-heading">Maryland Compliance — § 10-715</h2>
+        <p class="section-sub">Maryland's wholesale disclosure law (effective October 1, 2025) gives the other party rescission rights if you skip a disclosure. On a $1M contract, that is an existential risk. Run this checklist on every deal.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this checklist works</p>
+          <p>Md. Real Prop. § 10-715 applies to wholesale assignments of <strong>owner-occupied residential property of four or fewer units</strong>. It requires written disclosure to the seller <em>before</em> the purchase contract is signed, and written disclosure to your end buyer <em>before</em> the assignment is completed. Work through every item before contract and again before assignment; progress saves in this browser. Reset it for each new deal.</p>
+        </div>
+
+        <div class="card">
+          <div class="check-list" id="check-list"></div>
+          <div style="margin-top:18px;">
+            <button type="button" class="btn ghost small" id="check-reset">Reset for new deal</button>
+          </div>
+          <div class="legal-note">
+            <strong>Not legal advice.</strong> This checklist is an internal operating aid. Have a Maryland real estate attorney draft and review the purchase contract, assignment agreement, and both § 10-715 disclosure forms before first use — and confirm whether novation or double closing changes the disclosure posture on a given deal.
+          </div>
+        </div>
+      </section>
+
+      <footer style="margin-top:70px; padding-top:24px; border-top:1px solid var(--color-border); font-size:0.78rem; color:var(--color-text-muted);">
+        © EEN 2026 · Empower Estates Network — Internal lead intelligence system ·
+        <a href="https://empowerestatesnetwork.com" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent-light);">empowerestatesnetwork.com</a> ·
+        All data entered here stays in your browser (localStorage); nothing is transmitted.
+      </footer>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script defer src="app.js"></script>
+</body>
+</html>
