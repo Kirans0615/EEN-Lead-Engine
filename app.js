@@ -65,7 +65,10 @@
     { id: 'tenure', name: 'Owned 25+ years', pts: 15, hint: 'SDAT transfer date' },
     { id: 'equity', name: 'High equity (60%+)', pts: 15, hint: 'Low or no mortgage on record' },
     { id: 'lien', name: 'HOA / mechanic’s lien', pts: 15, hint: 'mdlandrec.net' },
+    { id: 'teardownecon', name: 'Land ≥55% of assessed value', pts: 15, hint: 'SDAT Finder TEARDOWN flag' },
+    { id: 'trustxfer', name: '$0 / trust transfer on record', pts: 15, hint: 'SDAT "Paid $0" flag' },
     { id: 'adjacency', name: 'Next to recent teardown', pts: 10, hint: 'Permit Radar adjacency' },
+    { id: 'original', name: 'Original condition, renovated street', pts: 10, hint: 'Permit adjacency + drive-by' },
     { id: 'maintenance', name: 'Visible deferred maintenance', pts: 10, hint: 'Drive-by observation' },
     { id: 'seniorcredit', name: 'Senior / homeowner tax credit', pts: 10, hint: 'Assessment record flag' },
     { id: 'codecase', name: 'Code enforcement case', pts: 10, hint: 'dataMontgomery' }
@@ -89,6 +92,13 @@
     { min: 0, cls: 'tier-cold', name: 'COLD', action: 'Select the signals that apply to this property. Below 20, leave it on the source list and re-check next cycle.' }
   ];
 
+  var BAND_RULES = {
+    entry: ' Band 1: standard white-glove sequence applies; both builder and flipper exits are available — fastest band to move.',
+    core: ' Band 2: match against the Buyer Network BEFORE contracting — builder exits only unless a flipper is pre-committed. Founder handles all voice contact.',
+    ultra: ' Band 3: NO mass mail at any score. Referral-grid introduction only, and a written buyer commitment before any contract.',
+    below: ''
+  };
+
   function renderScore() {
     var total = 0;
     $$('#signal-grid input').forEach(function (cb) {
@@ -96,17 +106,28 @@
       if (cb.checked) total += parseInt(cb.getAttribute('data-pts'), 10);
     });
     var score = Math.min(100, total);
+    var band = $('#band-select').value;
+    var tierEl = $('#score-tier');
+    if (band === 'below') {
+      $('#score-num').textContent = score;
+      $('#score-bar').style.width = score + '%';
+      tierEl.textContent = 'ROUTE OUT';
+      tierEl.className = 'tier tier-cold';
+      $('#score-action').textContent = 'Below the $700K luxury floor — this is not a Private Client lead. Route it to EEN’s standard wholesale operation and keep this system’s brand untouched.';
+      var si = $('#lead-score'); if (si) si.value = score || '';
+      return;
+    }
     var tier = TIERS.filter(function (t) { return score >= t.min; })[0];
     $('#score-num').textContent = score;
     $('#score-bar').style.width = score + '%';
-    var tierEl = $('#score-tier');
     tierEl.textContent = tier.name;
     tierEl.className = 'tier ' + tier.cls;
-    $('#score-action').textContent = tier.action;
+    $('#score-action').textContent = tier.action + (BAND_RULES[band] || '');
     var scoreInput = $('#lead-score');
     if (scoreInput) scoreInput.value = score || '';
   }
   grid.addEventListener('change', renderScore);
+  $('#band-select').addEventListener('change', renderScore);
   renderScore();
 
   /* ---------- Deal Analyzer ---------- */
@@ -137,6 +158,15 @@
     return '<div class="row' + (hero ? ' hero' : '') + '"><span>' + label + '</span><span class="v">' + value + '</span></div>';
   }
 
+  function exitStructure(fee, price) {
+    if (!price) return '—';
+    var pct = fee / price * 100;
+    var pctTxt = pct.toFixed(1) + '% of price — ';
+    if (pct < 2.5) return pctTxt + 'assignment viable (disclose per § 10-715)';
+    if (pct <= 5) return pctTxt + 'DOUBLE CLOSE recommended: fee this visible kills luxury deals';
+    return pctTxt + 'NOVATION or double close + consider a JV split with the buyer';
+  }
+
   function renderCalc() {
     var html = '';
     if (mode === 'teardown') {
@@ -150,7 +180,10 @@
       html += row('− Safety margin', fmtUSD(margin));
       html += row('− Your fee', fmtUSD(fee));
       html += row('Maximum allowable offer to seller', fmtUSD(mao), true);
-      html += row('Projected spread if contracted at max offer', fmtUSD(fee));
+      html += row('Recommended exit structure', exitStructure(fee, mao));
+      if (lot >= 1500000 && num('#td-margin') < 8) {
+        html += row('Band 2+ warning', 'Lot over $1.5M with margin under 8% — buyer pool thins fast up here; raise the safety margin');
+      }
     } else {
       var arv = num('#fl-arv');
       var pct = num('#fl-pct') / 100;
@@ -164,6 +197,7 @@
       html += row('= What a luxury flipper will pay', fmtUSD(buyerPays));
       html += row('− Your fee', fmtUSD(ffee));
       html += row('Maximum allowable offer to seller', fmtUSD(mao2), true);
+      html += row('Recommended exit structure', exitStructure(ffee, mao2));
     }
     results.innerHTML = html;
   }
@@ -309,42 +343,59 @@
     { name: 'Signed copies archived', desc: 'Both signed disclosures stored with the deal file — they are your defense against rescission.' },
     { name: 'Exit structure decided', desc: 'Assignment vs. double closing vs. novation chosen deliberately; transactional funding confirmed if double-closing.' },
     { name: 'Marketing claims audit', desc: 'No advertising language that implies you are a licensed broker; DNC scrubbing on any called numbers.' },
-    { name: 'Inspection-period exit intact', desc: 'Contract retains a clean contingency exit if dispo fails — never let a luxury contract go hard without a confirmed buyer.' }
+    { name: 'Inspection-period exit intact', desc: 'Contract retains a clean contingency exit if dispo fails — never let a luxury contract go hard without a confirmed buyer.' },
+    { name: 'Confidentiality commitments documented', desc: 'Any NDA or discretion promise made to the seller is in writing and honored in all marketing — no address, photos, or terms shared without consent.' },
+    { name: 'Named buyer matched (Band 2+)', desc: 'For deals over $1.2M: a specific Buyer Network entry has confirmed interest in this buy-box before the offer goes out.' }
   ];
 
-  function loadChecks() {
-    try { return JSON.parse(localStorage.getItem(LS_CHECKS)) || {}; }
-    catch (e) { return {}; }
+  var KIT = [
+    { name: 'Valuation dossier prepared', desc: 'Comps, land-value analysis, and permit activity on their street — printed and bound. This is what separates EEN from a "we buy houses" caller.' },
+    { name: 'Proof of funds letter', desc: 'Current, on letterhead, covering the offer range you intend to present.' },
+    { name: 'Title partner letter', desc: 'FD Title relationship letter / settlement track record — third-party credibility.' },
+    { name: 'Confidentiality offer ready', desc: 'NDA prepared and offered proactively. Discretion is the product; prove it before they ask.' },
+    { name: 'Two exit paths priced', desc: 'Cash as-is now vs. flexible-timeline private sale — luxury sellers respond to choice, not ultimatum.' },
+    { name: 'Comp book of private sales', desc: 'What builders/buyers actually paid on nearby streets (from Permit Radar + SDAT) — evidence, not assertion.' },
+    { name: 'Brand check', desc: 'EEN Private Client materials only. Nothing in the folder says or implies mass-market investor.' }
+  ];
+
+  function initChecklist(listSel, resetSel, lsKey, items, confirmMsg) {
+    var listEl = $(listSel);
+    function load() {
+      try { return JSON.parse(localStorage.getItem(lsKey)) || {}; }
+      catch (e) { return {}; }
+    }
+    function render() {
+      var state = load();
+      listEl.innerHTML = '';
+      items.forEach(function (c, i) {
+        var done = !!state[i];
+        var label = document.createElement('label');
+        label.className = 'check-item' + (done ? ' done' : '');
+        label.innerHTML =
+          '<input type="checkbox" data-ci="' + i + '"' + (done ? ' checked' : '') + '>' +
+          '<span><span class="c-name">' + c.name + '</span><br><span class="c-desc">' + c.desc + '</span></span>';
+        listEl.appendChild(label);
+      });
+    }
+    listEl.addEventListener('change', function (e) {
+      var cb = e.target.closest('input[data-ci]');
+      if (!cb) return;
+      var state = load();
+      state[cb.getAttribute('data-ci')] = cb.checked;
+      localStorage.setItem(lsKey, JSON.stringify(state));
+      render();
+    });
+    $(resetSel).addEventListener('click', function () {
+      if (!confirm(confirmMsg)) return;
+      localStorage.removeItem(lsKey);
+      render();
+      toast('Checklist reset');
+    });
+    render();
   }
 
-  var checkList = $('#check-list');
-  function renderChecks() {
-    var state = loadChecks();
-    checkList.innerHTML = '';
-    CHECKS.forEach(function (c, i) {
-      var done = !!state[i];
-      var label = document.createElement('label');
-      label.className = 'check-item' + (done ? ' done' : '');
-      label.innerHTML =
-        '<input type="checkbox" data-ci="' + i + '"' + (done ? ' checked' : '') + '>' +
-        '<span><span class="c-name">' + c.name + '</span><br><span class="c-desc">' + c.desc + '</span></span>';
-      checkList.appendChild(label);
-    });
-  }
-  checkList.addEventListener('change', function (e) {
-    var cb = e.target.closest('input[data-ci]');
-    if (!cb) return;
-    var state = loadChecks();
-    state[cb.getAttribute('data-ci')] = cb.checked;
-    localStorage.setItem(LS_CHECKS, JSON.stringify(state));
-    renderChecks();
-  });
-  $('#check-reset').addEventListener('click', function () {
-    if (!confirm('Reset the compliance checklist for a new deal?')) return;
-    localStorage.removeItem(LS_CHECKS);
-    renderChecks();
-    toast('Checklist reset');
-  });
+  initChecklist('#check-list', '#check-reset', LS_CHECKS, CHECKS, 'Reset the compliance checklist for a new deal?');
+  initChecklist('#kit-list', '#kit-reset', 'een-lead-engine:kit', KIT, 'Reset the meeting kit for the next meeting?');
 
   /* ============================================================
      LIVE INTEL — real queries against Maryland public data systems
@@ -616,6 +667,100 @@
       });
   });
 
-  renderChecks();
+  /* ---------- Buyer Network (localStorage) ---------- */
+  var LS_BUYERS = 'een-lead-engine:buyers';
+  function loadBuyers() {
+    try { return JSON.parse(localStorage.getItem(LS_BUYERS)) || []; }
+    catch (e) { return []; }
+  }
+  function saveBuyers(b) { localStorage.setItem(LS_BUYERS, JSON.stringify(b)); }
+
+  function daysSince(iso) {
+    if (!iso) return Infinity;
+    return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  }
+
+  function renderBuyers() {
+    var buyers = loadBuyers();
+    var tbody = $('#by-rows');
+    var empty = $('#by-empty');
+    tbody.innerHTML = '';
+    empty.style.display = buyers.length ? 'none' : 'block';
+    var stale = 0;
+
+    buyers.forEach(function (b, i) {
+      var d = daysSince(b.touched);
+      var isStale = d > 45;
+      if (isStale) stale++;
+      var touchTxt = b.touched
+        ? new Date(b.touched).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + (isStale ? ' ⚠ ' + d + 'd' : '')
+        : 'never';
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(b.name) + '</td>' +
+        '<td>' + escapeHtml(b.type) + '</td>' +
+        '<td style="white-space:nowrap;">' + escapeHtml(b.band) + '</td>' +
+        '<td>' + escapeHtml(b.product) + '</td>' +
+        '<td>' + escapeHtml(b.zips || '—') + '</td>' +
+        '<td style="white-space:nowrap;' + (isStale ? 'color:var(--color-amber);font-weight:600;' : '') + '">' + touchTxt + '</td>' +
+        '<td>' + escapeHtml(b.note || '') + '</td>' +
+        '<td style="white-space:nowrap;"><button type="button" class="btn ghost small" data-touch="' + i + '">Log touch</button> ' +
+        '<button type="button" class="btn danger small" data-bydel="' + i + '">Remove</button></td>';
+      tbody.appendChild(tr);
+    });
+
+    $('#stat-buyers').textContent = buyers.length;
+    var st = $('#by-status');
+    if (buyers.length) {
+      st.className = 'tool-status' + (stale ? ' err' : ' ok');
+      st.textContent = buyers.length + ' buyers on the book' + (stale ? ' — ' + stale + ' untouched for 45+ days, call them this week.' : ' — all inside the 45-day touch window.');
+    } else {
+      st.className = 'tool-status';
+      st.textContent = '';
+    }
+  }
+
+  $('#by-add').addEventListener('click', function () {
+    var name = $('#by-name').value.trim();
+    if (!name) { toast('Enter a buyer or company name first'); $('#by-name').focus(); return; }
+    var buyers = loadBuyers();
+    buyers.unshift({
+      name: name,
+      type: $('#by-type').value,
+      band: $('#by-band').value,
+      product: $('#by-product').value,
+      zips: $('#by-zips').value.trim(),
+      note: $('#by-note').value.trim(),
+      touched: new Date().toISOString()
+    });
+    saveBuyers(buyers);
+    $('#by-name').value = ''; $('#by-zips').value = ''; $('#by-note').value = '';
+    renderBuyers();
+    toast('Buyer added to the network');
+  });
+
+  $('#by-rows').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-touch]');
+    if (t) {
+      var buyers = loadBuyers();
+      buyers[parseInt(t.getAttribute('data-touch'), 10)].touched = new Date().toISOString();
+      saveBuyers(buyers);
+      renderBuyers();
+      toast('Touch logged');
+      return;
+    }
+    var del = e.target.closest('[data-bydel]');
+    if (del) {
+      var i = parseInt(del.getAttribute('data-bydel'), 10);
+      var list = loadBuyers();
+      if (!confirm('Remove "' + list[i].name + '" from the buyer network?')) return;
+      list.splice(i, 1);
+      saveBuyers(list);
+      renderBuyers();
+      toast('Buyer removed');
+    }
+  });
+
   renderLeads();
+  renderBuyers();
 })();
