@@ -740,9 +740,11 @@
             : 'Live SDAT: built ' + (a.YEARBLT || '?') + ', owned since ' + fmtTradate(a.TRADATE) + ', land ' + pct + '% of value')
             + (ownerFull ? '. Owner mails to ' + ownerFull : '');
 
+          var zSlug = [addr, city, 'MD', zipc].filter(Boolean).join(' ').replace(/[,#.]/g, '').replace(/\s+/g, '-');
+          var zillow = 'https://www.zillow.com/homes/' + encodeURIComponent(zSlug) + '_rb/';
           var tr = document.createElement('tr');
           tr.innerHTML =
-            '<td>' + escapeHtml(cityAddr) + (a.SDATWEBADR ? ' <a class="rec-link" href="' + escapeHtml(a.SDATWEBADR) + '" target="_blank" rel="noopener noreferrer">↗</a>' : '') + '</td>' +
+            '<td>' + escapeHtml(cityAddr) + ' <a class="rec-link" href="' + zillow + '" target="_blank" rel="noopener noreferrer" title="Open this property on Zillow">Zillow ↗</a></td>' +
             '<td>' + escapeHtml(a.YEARBLT || (isLand ? 'lot' : '—')) + '</td>' +
             '<td style="white-space:nowrap;">' + fmtTradate(a.TRADATE) + '</td>' +
             '<td>' + fmtMoney(land) + '</td>' +
