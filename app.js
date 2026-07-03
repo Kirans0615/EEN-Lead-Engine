@@ -257,7 +257,8 @@
         '<td><span class="status-pill ' + (lead.score >= 60 ? 'st-negotiating' : 'st-new') + '">' + escapeHtml(lead.score || '–') + '</span></td>' +
         '<td><select data-i="' + i + '" aria-label="Status for ' + escapeHtml(lead.addr) + '">' + opts + '</select></td>' +
         '<td>' + escapeHtml(lead.note || '') + '</td>' +
-        '<td><button type="button" class="btn danger small" data-del="' + i + '">Remove</button></td>';
+        '<td style="white-space:nowrap;">' + leadSkipBtn(lead) +
+        ' <button type="button" class="btn danger small" data-del="' + i + '">Remove</button></td>';
       tbody.appendChild(tr);
     });
     renderStats(leads);
@@ -343,6 +344,7 @@
     { name: 'Signed copies archived', desc: 'Both signed disclosures stored with the deal file — they are your defense against rescission.' },
     { name: 'Exit structure decided', desc: 'Assignment vs. double closing vs. novation chosen deliberately; transactional funding confirmed if double-closing.' },
     { name: 'Marketing claims audit', desc: 'No advertising language that implies you are a licensed broker; DNC scrubbing on any called numbers.' },
+    { name: 'Skip-trace contacts vetted (TCPA)', desc: 'Before calling any skip-traced number: confirm it is NOT flagged DNC and the person is NOT a litigator. Prefer mail/email for first contact; keep consent records for calls and texts.' },
     { name: 'Inspection-period exit intact', desc: 'Contract retains a clean contingency exit if dispo fails — never let a luxury contract go hard without a confirmed buyer.' },
     { name: 'Confidentiality commitments documented', desc: 'Any NDA or discretion promise made to the seller is in writing and honored in all marketing — no address, photos, or terms shared without consent.' },
     { name: 'Named buyer matched (Band 2+)', desc: 'For deals over $1.2M: a specific Buyer Network entry has confirmed interest in this buy-box before the offer goes out.' }
@@ -473,21 +475,209 @@
     );
   });
 
+  /* ============================================================
+     SKIP TRACE — Tracerfy (paid, per-record). Token stored only in
+     this browser; never in the repo/public bundle. Fires only on an
+     explicit click with confirmation. Tracks credit spend locally.
+     ============================================================ */
+  var TRACERFY_URL = 'https://tracerfy.com/v1/api/trace/lookup/';
+  var LS_TOKEN = 'een-lead-engine:sttoken';
+  var LS_CREDITS = 'een-lead-engine:stcredits';
+
+  function getToken() { try { return localStorage.getItem(LS_TOKEN) || ''; } catch (e) { return ''; } }
+  function getCredits() { return parseInt(localStorage.getItem(LS_CREDITS) || '0', 10) || 0; }
+  function addCredits(n) { localStorage.setItem(LS_CREDITS, String(getCredits() + (parseInt(n, 10) || 0))); }
+
+  function renderCreditPill() {
+    var pill = $('#st-credits-pill');
+    var tok = getToken();
+    if (!tok) { pill.textContent = 'Not connected'; pill.className = 'st-credits'; return; }
+    pill.textContent = getCredits() + ' credits used · connected';
+    pill.className = 'st-credits on';
+  }
+
+  var tokInput = $('#st-token');
+  if (tokInput && getToken()) tokInput.value = getToken();
+  $('#st-save').addEventListener('click', function () {
+    var v = tokInput.value.trim();
+    if (!v) { setStatus('#st-status', 'Paste a token first.', 'err'); return; }
+    localStorage.setItem(LS_TOKEN, v);
+    renderCreditPill();
+    setStatus('#st-status', 'Token saved to this browser only.', 'ok');
+    toast('Skip Trace connected');
+  });
+  $('#st-clear').addEventListener('click', function () {
+    localStorage.removeItem(LS_TOKEN);
+    tokInput.value = '';
+    renderCreditPill();
+    setStatus('#st-status', 'Token cleared from this browser.', '');
+  });
+
+  function skipBtn(addr, city, state, zip) {
+    return '<button type="button" class="btn ghost small skip-btn" data-skip="1" ' +
+      'data-addr="' + encodeURIComponent(addr || '') + '" ' +
+      'data-city="' + encodeURIComponent(city || '') + '" ' +
+      'data-state="' + encodeURIComponent(state || 'MD') + '" ' +
+      'data-zip="' + encodeURIComponent(zip || '') + '">⚲ Skip trace</button>';
+  }
+
+  // Parse a free-text lead address like "9412 Fernwood Rd, Bethesda MD 20817"
+  function parseAddr(full) {
+    var out = { addr: full || '', city: '', state: 'MD', zip: '' };
+    if (!full) return out;
+    var zipM = full.match(/(\d{5})(?:-\d{4})?\s*$/);
+    if (zipM) out.zip = zipM[1];
+    var stM = full.match(/\b([A-Z]{2})\b\s*\d{5}/) || full.match(/\b([A-Z]{2})\b\s*$/);
+    if (stM) out.state = stM[1];
+    var parts = full.split(',');
+    out.addr = parts[0].trim();
+    if (parts.length > 1) {
+      // "Bethesda MD 20817" -> city = Bethesda
+      out.city = parts[1].trim().replace(/\b[A-Z]{2}\b.*$/, '').replace(/\d{5}.*$/, '').trim();
+    }
+    return out;
+  }
+
+  function leadSkipBtn(lead) {
+    var p = parseAddr(lead.addr);
+    return skipBtn(p.addr, p.city, p.state, p.zip);
+  }
+
+  function renderPersons(data) {
+    var persons = (data && data.persons) || [];
+    if (!persons.length) return '<div class="skip-inner"><p class="muted">No contact match found for this address (no credits charged for a miss on most plans).</p></div>';
+    var html = '<div class="skip-inner">';
+    persons.forEach(function (p) {
+      html += '<div class="person">';
+      html += '<div><span class="p-name">' + escapeHtml(p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown') + '</span>';
+      if (p.age) html += '<span class="p-meta">age ' + escapeHtml(p.age) + '</span>';
+      if (p.deceased) html += ' <span class="tag-deceased">DECEASED — probate?</span>';
+      if (p.litigator) html += ' <span class="tag-lit">⚠ LITIGATOR — do not call</span>';
+      html += '</div>';
+      if (p.mailing_address && p.mailing_address.street) {
+        var m = p.mailing_address;
+        html += '<div class="p-meta" style="margin:4px 0 2px;">Mails to: ' + escapeHtml([m.street, m.city, m.state, m.zip].filter(Boolean).join(', ')) + '</div>';
+      }
+      var phones = p.phones || [];
+      if (phones.length) {
+        html += '<div class="contact-row">';
+        phones.forEach(function (ph) {
+          var num = (ph.number || '').replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+          html += '<a class="contact-chip" href="tel:' + escapeHtml(ph.number || '') + '">' + escapeHtml(num) +
+            ' <span class="p-meta">' + escapeHtml(ph.type || '') + '</span>' +
+            (ph.dnc ? ' <span class="tag-dnc">DNC</span>' : ' <span class="tag-safe">OK</span>') + '</a>';
+        });
+        html += '</div>';
+      }
+      var emails = p.emails || [];
+      if (emails.length) {
+        html += '<div class="contact-row">';
+        emails.forEach(function (em) {
+          html += '<a class="contact-chip email" href="mailto:' + escapeHtml(em.email || '') + '">✉ ' + escapeHtml(em.email || '') + '</a>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-skip]');
+    if (!btn) return;
+    var token = getToken();
+    if (!token) {
+      toast('Add your Tracerfy token in Skip Trace settings first');
+      var s = $('#st-settings'); if (s) { s.open = true; s.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      return;
+    }
+    var addr = decodeURIComponent(btn.getAttribute('data-addr'));
+    var city = decodeURIComponent(btn.getAttribute('data-city'));
+    var state = decodeURIComponent(btn.getAttribute('data-state'));
+    var zip = decodeURIComponent(btn.getAttribute('data-zip'));
+
+    if (!confirm('Skip trace ' + addr + '?\n\nThis calls the paid Tracerfy API and may cost several credits (billed per contact found). Continue?')) return;
+
+    var origText = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span>Tracing…';
+
+    var row = btn.closest('tr');
+    var isTable = !!row;
+
+    fetch(TRACERFY_URL, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: addr, city: city, state: state, zip: zip, find_owner: true })
+    })
+      .then(function (r) {
+        if (r.status === 401 || r.status === 403) throw new Error('auth rejected — check your token');
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (data.credits_deducted) addCredits(data.credits_deducted);
+        renderCreditPill();
+        btn.disabled = false;
+        btn.textContent = data.hit ? '✓ Traced' : '○ No hit';
+        var panelHtml = renderPersons(data);
+        if (isTable) {
+          var colspan = row.children.length;
+          var next = row.nextElementSibling;
+          if (next && next.classList.contains('skip-panel')) next.remove();
+          var pr = document.createElement('tr');
+          pr.className = 'skip-panel';
+          pr.innerHTML = '<td colspan="' + colspan + '">' + panelHtml + '</td>';
+          row.after(pr);
+        } else {
+          var host = document.getElementById(btn.getAttribute('data-panel'));
+          if (host) host.innerHTML = panelHtml;
+        }
+        toast(data.hit ? 'Trace complete · ' + (data.credits_deducted || 0) + ' credits' : 'No contact match');
+      })
+      .catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = origText;
+        toast('Skip trace failed: ' + err.message);
+      });
+  });
+
+  renderCreditPill();
+
+  /* Property-type hint toggle */
+  $('#sd-ptype').addEventListener('change', function () {
+    var land = this.value === 'land';
+    $('#sd-ptype-hint').textContent = land
+      ? 'Near-vacant lots (residential/ag, little or no structure) — pair with the Permit Radar for building activity.'
+      : 'Improved residential parcels — the seller profiles below.';
+    // land parcels often have no owner-occupancy/tenure meaning; relax those controls
+    $('#sd-minval').value = land ? '400000' : '900000';
+  });
+
   /* ---------- Tool 1: SDAT Property Finder ---------- */
   $('#sd-run').addEventListener('click', function () {
     var jur = $('#sd-jur').value;
     var zip = $('#sd-zip').value.trim();
+    var ptype = $('#sd-ptype').value;
     var minval = parseInt($('#sd-minval').value, 10) || 0;
     var year = $('#sd-year').value;
     var ownerMode = $('#sd-owner').value;
     var sort = $('#sd-sort').value;
+    var isLand = ptype === 'land';
 
-    var where = ["JURSCODE='" + jur + "'", 'NFMTTLVL>=' + minval, "LU='R'", 'ADDRESS IS NOT NULL'];
+    var where = ["JURSCODE='" + jur + "'", 'NFMTTLVL>=' + minval, 'ADDRESS IS NOT NULL'];
+    if (isLand) {
+      where.push("LU in('R','A')", 'NFMIMPVL<50000'); // near-vacant: negligible structure value
+    } else {
+      where.push("LU='R'");
+    }
     if (/^\d{5}$/.test(zip)) where.push("ZIPCODE='" + zip + "'");
-    if (year) where.push("TRADATE<'" + year + "0101'");
+    if (year && !isLand) where.push("TRADATE<'" + year + "0101'");
     if (ownerMode === 'occupied') where.push("OOI='H'");
-    if (ownerMode === 'absentee') where.push("OOI<>'H'");
+    if (ownerMode === 'landlord') where.push("OOI<>'H'");
     if (ownerMode === 'outofstate') where.push("OWNSTATE<>'MD'", "OWNSTATE<>''");
+    if (ownerMode === 'trust') where.push('(CONSIDR1=0 OR CONSIDR1 IS NULL)');
 
     var base = SDAT_URL + '?' + new URLSearchParams({
       where: where.join(' AND '),
@@ -495,7 +685,7 @@
       f: 'json'
     }).toString();
     var rowsUrl = base + '&' + new URLSearchParams({
-      outFields: 'ADDRESS,CITY,YEARBLT,TRADATE,CONSIDR1,NFMLNDVL,NFMTTLVL,OWNSTATE,OOI,SDATWEBADR,ACRES',
+      outFields: 'ADDRESS,CITY,ZIPCODE,YEARBLT,TRADATE,CONSIDR1,NFMLNDVL,NFMIMPVL,NFMTTLVL,OWNADD1,OWNCITY,OWNSTATE,OWNERZIP,OOI,SDATWEBADR,ACRES',
       orderByFields: sort,
       resultRecordCount: '50'
     }).toString();
@@ -513,38 +703,61 @@
         var tbody = $('#sd-rows');
         tbody.innerHTML = '';
         if (!feats.length) {
-          setStatus('#sd-status', 'No parcels matched — widen the filters (lower min value or loosen tenure).', 'err');
+          setStatus('#sd-status', 'No parcels matched — widen the filters (lower min value, loosen tenure, or switch profile).', 'err');
           return;
         }
         feats.forEach(function (f) {
           var a = f.attributes;
           var addr = (a.ADDRESS || '').trim();
-          var cityAddr = addr + (a.CITY ? ', ' + a.CITY.trim() : '');
+          var city = (a.CITY || '').trim();
+          var zipc = (a.ZIPCODE || '').trim();
+          var st = (a.OWNSTATE || '').trim();
+          var cityAddr = addr + (city ? ', ' + city : '');
           var land = a.NFMLNDVL || 0, tot = a.NFMTTLVL || 0;
           var pct = tot ? Math.round(land / tot * 100) : 0;
+
+          // Owner mailing address (real skip-trace-lite, free)
+          var ownerCity = [a.OWNCITY, st].filter(Boolean).join(' ');
+          var ownerFull = [a.OWNADD1, ownerCity, a.OWNERZIP].filter(Boolean).join(', ');
+          var propUpper = (addr || '').toUpperCase();
+          var absentee = a.OWNADD1 && propUpper && a.OWNADD1.toUpperCase().indexOf(propUpper.split(' ')[0]) === -1;
+          var ownerCell = ownerFull
+            ? '<span class="owner-mail' + (absentee ? ' absentee' : '') + '">' + escapeHtml(ownerFull) + (absentee ? ' ⚑' : '') + '</span>'
+            : '—';
+
           var flags = '';
-          if (pct >= 55) flags += '<span class="flag-chip flag-teardown">TEARDOWN ECON</span>';
-          if (!a.CONSIDR1) flags += '<span class="flag-chip flag-trust">TRUST/ESTATE XFER</span>';
-          if (a.OWNSTATE && a.OWNSTATE !== 'MD') flags += '<span class="flag-chip flag-oos">OWNER: ' + escapeHtml(a.OWNSTATE) + '</span>';
-          var srcName = ownerMode === 'occupied' ? 'Long-Tenure Equity Map' : 'Absentee & Vacancy';
-          var note = 'Live SDAT: built ' + (a.YEARBLT || '?') + ', owned since ' + fmtTradate(a.TRADATE) +
-            ', land ' + fmtMoney(land) + ' (' + pct + '% of value)';
+          if (isLand) flags += '<span class="flag-chip flag-teardown">VACANT / LOW-IMPROV</span>';
+          else if (pct >= 55) flags += '<span class="flag-chip flag-teardown">TEARDOWN ECON</span>';
+          if (!a.CONSIDR1) flags += '<span class="flag-chip flag-trust">$0 / TRUST XFER</span>';
+          if (a.OOI && a.OOI !== 'H') flags += '<span class="flag-chip flag-trust">NON-OCC (LANDLORD)</span>';
+          if (st && st !== 'MD') flags += '<span class="flag-chip flag-oos">OWNER: ' + escapeHtml(st) + '</span>';
+
+          var srcName = isLand ? 'Teardown Permit Radar'
+            : ownerMode === 'occupied' ? 'Long-Tenure Equity Map'
+            : ownerMode === 'landlord' ? 'Tired Landlord'
+            : 'Absentee & Vacancy';
+          var note = (isLand ? 'Live SDAT land: ' + (a.ACRES || '?') + ' acres, land ' + fmtMoney(land) + ', improv ' + fmtMoney(a.NFMIMPVL || 0)
+            : 'Live SDAT: built ' + (a.YEARBLT || '?') + ', owned since ' + fmtTradate(a.TRADATE) + ', land ' + pct + '% of value')
+            + (ownerFull ? '. Owner mails to ' + ownerFull : '');
+
           var tr = document.createElement('tr');
           tr.innerHTML =
-            '<td>' + escapeHtml(cityAddr) + '</td>' +
-            '<td>' + escapeHtml(a.YEARBLT || '—') + '</td>' +
+            '<td>' + escapeHtml(cityAddr) + (a.SDATWEBADR ? ' <a class="rec-link" href="' + escapeHtml(a.SDATWEBADR) + '" target="_blank" rel="noopener noreferrer">↗</a>' : '') + '</td>' +
+            '<td>' + escapeHtml(a.YEARBLT || (isLand ? 'lot' : '—')) + '</td>' +
             '<td style="white-space:nowrap;">' + fmtTradate(a.TRADATE) + '</td>' +
-            '<td>' + (a.CONSIDR1 ? fmtMoney(a.CONSIDR1) : '$0') + '</td>' +
             '<td>' + fmtMoney(land) + '</td>' +
             '<td>' + fmtMoney(tot) + '</td>' +
             '<td><span class="landpct' + (pct >= 55 ? ' hi' : '') + '">' + pct + '%</span></td>' +
+            '<td>' + ownerCell + '</td>' +
             '<td>' + (flags || '—') + '</td>' +
-            '<td>' + (a.SDATWEBADR ? '<a class="rec-link" href="' + escapeHtml(a.SDATWEBADR) + '" target="_blank" rel="noopener noreferrer">SDAT ↗</a>' : '—') + '</td>' +
+            '<td>' + skipBtn(addr, city, st || 'MD', zipc) + '</td>' +
             '<td>' + pipeBtn(cityAddr, srcName, note) + '</td>';
           tbody.appendChild(tr);
         });
         $('#sd-wrap').hidden = false;
-        setStatus('#sd-status', total.toLocaleString() + ' matching parcels in state records — showing top ' + feats.length + '.', 'ok');
+        var absCount = feats.filter(function (f) { var a = f.attributes; return a.OWNSTATE && a.OWNSTATE !== 'MD'; }).length;
+        setStatus('#sd-status', total.toLocaleString() + ' parcels in state records — showing top ' + feats.length +
+          ' with owner mailing addresses' + (absCount ? ' (' + absCount + ' out-of-state ⚑)' : '') + '.', 'ok');
       })
       .catch(function (err) {
         setStatus('#sd-status', 'State endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');

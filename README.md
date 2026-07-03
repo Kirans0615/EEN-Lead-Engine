@@ -15,11 +15,17 @@ A single-page static app (no build step, no server) with these modules:
 
 1. **Command Center** — the 5-stage operating flow (Source → Stack → Score → Sequence → Close) with live pipeline stats
 2. **Lead Source Engines** — 8 proprietary lead-origination playbooks built on Maryland public records (probate, permits, SDAT tenure, tax sale, land records, USPS vacancy, divorce dockets, advisor referrals), each with direct links to the live data sources and a step-by-step plan
-2b. **Live Intel** — three tools that query real government data in the browser:
-   SDAT Property Finder (MD iMAP ArcGIS REST — statewide parcels: tenure, land value,
-   absentee/out-of-state owners, trust transfers), Teardown Permit Radar (dataMontgomery
-   demolition + new-SFD-construction permits, updated daily), and Code Violation Sweep
-   (county housing code enforcement). Results push straight into the Pipeline Tracker.
+2b. **Live Intel** — tools that query real government data in the browser:
+   SDAT Property Finder (MD iMAP ArcGIS REST — two profiles: **motivated homeowners**
+   [tired landlords, absentee/out-of-state, long-tenure, trust transfers] and **development
+   land** [near-vacant lots]; includes the owner's real **mailing address** automatically),
+   Teardown Permit Radar (dataMontgomery permits, daily), and Code Violation Sweep. Results
+   push straight into the Pipeline Tracker.
+2c. **Skip Trace** — resolves owner **phone + email** via the Tracerfy API
+   (`POST /v1/api/trace/lookup/`, Bearer token). Fires only on an explicit per-lead click
+   with a confirm; surfaces DNC + litigator + deceased flags; tracks credit spend locally.
+   The token is entered at runtime and stored **only in the browser's localStorage** — it is
+   never committed to this repo or shipped in the public bundle. Each user pastes their own.
 3. **Signal Stacker** — interactive 0–100 motivation scoring across 14 stacked signals
 4. **Deal Analyzer** — max-allowable-offer calculators for teardown/lot deals and luxury flips
 5. **Marketing Sequences** — the 6-touch discreet campaign plus three copy-ready letter templates

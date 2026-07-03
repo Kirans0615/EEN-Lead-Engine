@@ -374,8 +374,29 @@
 
         <div class="how-it-works">
           <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this section works</p>
-          <p>Tool 1 queries the <strong>State of Maryland's SDAT parcel database</strong> (via MD iMAP) — every result is a real property with its real assessment, transfer date, and land value. Tool 2 queries <strong>Montgomery County's live permit system</strong> (dataMontgomery), updated daily. Tool 3 pulls <strong>county housing-code violations</strong>. No API keys, no cost, no login — these are public records served by the state and county. Any result can be pushed straight into the Pipeline Tracker with one click. If a query returns nothing, widen the filters; if it errors, the government endpoint may be briefly down — retry in a minute.</p>
+          <p>Tool 1 queries the <strong>State of Maryland's SDAT parcel database</strong> (via MD iMAP) for two target profiles: <strong>motivated homeowners</strong> (tired landlords, absentee, long-tenure, trust transfers) and <strong>development land</strong> (near-vacant lots). Tool 2 queries <strong>Montgomery County's live permit system</strong> for building activity. Tool 3 pulls <strong>housing-code violations</strong>. All three are free public records with the owner's <strong>mailing address included automatically</strong> — a free skip-trace of where to reach them. To resolve phone and email, each result has a <strong>Skip Trace</strong> button (paid Tracerfy lookup — see the bar below).</p>
         </div>
+
+        <details class="card skiptrace-bar" id="st-settings">
+          <summary>
+            <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>Skip Trace settings &amp; credits</span>
+            <span class="st-credits" id="st-credits-pill">Not connected</span>
+          </summary>
+          <div class="st-body">
+            <p class="muted" style="font-size:0.86rem; max-width:80ch;">Skip tracing resolves an owner's <strong>phone numbers and emails</strong> via Tracerfy. This is a <strong>paid, per-record</strong> service (one lookup can return several people and cost several credits), so it never runs automatically or in bulk — only when you click Skip Trace on a specific lead, with a confirmation.</p>
+            <label class="f-label" for="st-token">Tracerfy API token (Bearer)</label>
+            <input type="password" id="st-token" placeholder="Paste your token — stored only in this browser" autocomplete="off">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center;">
+              <button type="button" class="btn small" id="st-save">Save token</button>
+              <button type="button" class="btn ghost small" id="st-clear">Clear token</button>
+              <span class="tool-status" id="st-status"></span>
+            </div>
+            <div class="legal-note" style="margin-top:16px;">
+              <strong>Security:</strong> your token lives only in this browser's localStorage — it is never written into the site's public code or committed to GitHub. Anyone using this tool must paste their own token. Because you shared this token in chat, consider rotating it in your Tracerfy dashboard once set up here.<br><br>
+              <strong>Credits:</strong> lookups are billed per person/contact found, not per address — the counter above tracks spend this browser. <strong>Compliance:</strong> Tracerfy returns <span style="color:var(--color-red);font-weight:600;">DNC</span> and <span style="color:var(--color-amber);font-weight:600;">litigator</span> flags — never call a DNC or litigator number; those are surfaced on every result.
+            </div>
+          </div>
+        </details>
 
         <!-- Tool 1: SDAT Property Finder -->
         <div class="card tool">
@@ -399,6 +420,24 @@
               <p class="helper">Luxury zips: 20814/15/16/17 Bethesda–Chevy Chase, 20854 Potomac, 20895 Kensington, 21029 Clarksville, 21401 Annapolis.</p>
             </div>
             <div>
+              <label class="f-label" for="sd-ptype">Looking for</label>
+              <select id="sd-ptype">
+                <option value="homes" selected>Homes (motivated sellers)</option>
+                <option value="land">Land / lots (development targets)</option>
+              </select>
+              <p class="helper" id="sd-ptype-hint">Improved residential parcels — the seller profiles below.</p>
+            </div>
+            <div>
+              <label class="f-label" for="sd-owner">Seller profile</label>
+              <select id="sd-owner">
+                <option value="landlord" selected>Tired landlord (non-owner-occupied)</option>
+                <option value="outofstate">Absentee / out-of-state owner</option>
+                <option value="occupied">Long-tenure downsizer (owner-occupied)</option>
+                <option value="trust">Trust / estate transfer ($0 sale)</option>
+                <option value="any">Any owner</option>
+              </select>
+            </div>
+            <div>
               <label class="f-label" for="sd-minval">Min. assessed value ($)</label>
               <input type="number" id="sd-minval" value="900000" min="0" step="50000">
             </div>
@@ -409,15 +448,6 @@
                 <option value="2010">Before 2010 (15+ yrs)</option>
                 <option value="2000" selected>Before 2000 (25+ yrs)</option>
                 <option value="1990">Before 1990 (35+ yrs)</option>
-              </select>
-            </div>
-            <div>
-              <label class="f-label" for="sd-owner">Owner profile</label>
-              <select id="sd-owner">
-                <option value="occupied" selected>Owner-occupied (downsizer targets)</option>
-                <option value="absentee">Non-owner-occupied (absentee)</option>
-                <option value="outofstate">Out-of-state owner</option>
-                <option value="any">Any</option>
               </select>
             </div>
             <div>
@@ -435,11 +465,11 @@
           </div>
           <div class="table-wrap" id="sd-wrap" hidden>
             <table aria-label="SDAT property results">
-              <thead><tr><th>Address</th><th>Built</th><th>Owned since</th><th>Paid</th><th>Land value</th><th>Total value</th><th>Land %</th><th>Flags</th><th>Record</th><th><span class="sr-only">Add</span></th></tr></thead>
+              <thead><tr><th>Address</th><th>Built</th><th>Owned since</th><th>Land value</th><th>Total</th><th>Land %</th><th>Owner mails to</th><th>Flags</th><th>Skip trace</th><th><span class="sr-only">Add</span></th></tr></thead>
               <tbody id="sd-rows"></tbody>
             </table>
           </div>
-          <p class="helper" style="margin-top:10px;">Source: Maryland SDAT parcel data via MD iMAP (state GIS). "Paid $0" usually means a family, trust, or estate transfer — often a pre-probate signal. Owner names aren't in the GIS layer; the Record link opens the full SDAT page with ownership details.</p>
+          <p class="helper" style="margin-top:10px;">Source: Maryland SDAT parcel data via MD iMAP (state GIS). <strong>"Owner mails to"</strong> is the real owner mailing address from tax records — when it differs from the property, that's your absentee signal (and the address to mail). "Paid $0" = a family/trust/estate transfer, often a pre-probate signal. Owner <em>names</em> are withheld from open data for privacy; use Skip Trace or the SDAT link to resolve them.</p>
         </div>
 
         <!-- Tool 2: Permit Radar Live -->

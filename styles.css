@@ -476,6 +476,50 @@ a.live-link:hover { background: rgba(74,222,128,0.1); }
 td .btn.small { white-space: nowrap; }
 .rec-link { color: var(--color-accent-light); font-size: 0.8rem; }
 
+/* ---------- Skip Trace ---------- */
+.skiptrace-bar { padding: 0; margin-bottom: 22px; overflow: hidden; }
+.skiptrace-bar > summary {
+  list-style: none; cursor: pointer; padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  font-weight: 600; font-size: 0.92rem; min-height: 44px;
+}
+.skiptrace-bar > summary::-webkit-details-marker { display: none; }
+.st-credits {
+  font-family: var(--font-eyebrow); font-size: 0.66rem; letter-spacing: 0.14em;
+  text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--color-border-strong); color: var(--color-text-muted);
+}
+.st-credits.on { color: var(--color-green); border-color: rgba(74,222,128,0.5); }
+.st-body { padding: 0 22px 22px; border-top: 1px solid var(--color-border); }
+.st-body .f-label { margin-top: 16px; }
+
+.skip-btn { white-space: nowrap; }
+.skip-panel { background: var(--color-surface-2); border-top: 1px solid var(--color-border-strong); }
+.skip-panel td { padding: 0 !important; }
+.skip-inner { padding: 16px 18px; }
+.person {
+  border: 1px solid var(--color-border); border-radius: var(--radius-btn);
+  padding: 12px 14px; margin-bottom: 10px; background: var(--color-surface);
+}
+.person:last-child { margin-bottom: 0; }
+.person .p-name { font-family: var(--font-display); font-weight: 650; font-size: 0.95rem; }
+.person .p-meta { font-size: 0.76rem; color: var(--color-text-muted); margin-left: 8px; }
+.contact-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.contact-chip {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem;
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-btn);
+  padding: 6px 10px; color: var(--color-text); text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+.contact-chip:hover { border-color: var(--color-gold); }
+.contact-chip.email { color: var(--color-accent-light); }
+.tag-dnc { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; color: var(--color-red); border: 1px solid rgba(248,113,113,0.5); border-radius: 4px; padding: 1px 5px; }
+.tag-safe { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; color: var(--color-green); border: 1px solid rgba(74,222,128,0.4); border-radius: 4px; padding: 1px 5px; }
+.tag-lit { font-size: 0.62rem; font-weight: 700; color: var(--color-amber); border: 1px solid rgba(251,191,36,0.5); border-radius: 4px; padding: 1px 5px; }
+.tag-deceased { font-size: 0.62rem; font-weight: 700; color: var(--color-amber); border: 1px solid rgba(251,191,36,0.5); border-radius: 4px; padding: 1px 6px; }
+.owner-mail { font-size: 0.8rem; }
+.owner-mail.absentee { color: var(--color-red); font-weight: 600; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
