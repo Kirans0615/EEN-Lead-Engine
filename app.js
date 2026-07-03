@@ -346,6 +346,276 @@
     toast('Checklist reset');
   });
 
+  /* ============================================================
+     LIVE INTEL — real queries against Maryland public data systems
+     - SDAT parcels:  MD iMAP ArcGIS REST (mdgeodata.md.gov)
+     - Permits & code violations: dataMontgomery Socrata API
+     ============================================================ */
+
+  var SDAT_URL = 'https://mdgeodata.md.gov/imap/rest/services/PlanningCadastre/MD_PropertyData/MapServer/0/query';
+  var SOCRATA = 'https://data.montgomerycountymd.gov/resource/';
+  var DS_DEMO = 'b6ht-fw3x';   // Demolition Permits
+  var DS_RES = 'm88u-pqki';    // Residential Permits
+  var DS_CODE = 'k9nj-z35d';   // Housing Code Violations
+
+  function fmtMoney(n) {
+    n = parseInt(n, 10) || 0;
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return '$' + Math.round(n / 1e3) + 'K';
+    return '$' + n;
+  }
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmtTradate(s) { // "19970922" -> "Sep 1997"
+    if (!s || s.length < 6) return '—';
+    var m = parseInt(s.slice(4, 6), 10);
+    return (MONTHS[m - 1] || '') + ' ' + s.slice(0, 4);
+  }
+  function fmtIso(s) { // "2026-06-30T..." -> "Jun 30, 2026"
+    if (!s) return '—';
+    var d = new Date(s);
+    return isNaN(d) ? s.slice(0, 10) : MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  }
+
+  function setStatus(id, msg, cls) {
+    var el = $(id);
+    el.className = 'tool-status' + (cls ? ' ' + cls : '');
+    el.innerHTML = msg;
+  }
+
+  function fetchJson(url, timeoutMs) {
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); }, timeoutMs || 25000);
+    return fetch(url, { signal: ctrl.signal })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .finally(function () { clearTimeout(t); });
+  }
+
+  /* Shared: add a lead from a live-result row */
+  function addLeadDirect(addr, source, note) {
+    var leads = loadLeads();
+    var exists = leads.some(function (l) { return l.addr.toLowerCase() === addr.toLowerCase(); });
+    if (exists) { toast('Already in the pipeline: ' + addr); return; }
+    leads.unshift({
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      addr: addr, source: source, score: '', status: 'New', note: note
+    });
+    saveLeads(leads);
+    renderLeads();
+    toast('Added to pipeline: ' + addr);
+  }
+  function pipeBtn(addr, source, note) {
+    return '<button type="button" class="btn ghost small" data-pipe="1" ' +
+      'data-addr="' + encodeURIComponent(addr) + '" ' +
+      'data-source="' + encodeURIComponent(source) + '" ' +
+      'data-note="' + encodeURIComponent(note) + '">+ Pipeline</button>';
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-pipe]');
+    if (!btn) return;
+    addLeadDirect(
+      decodeURIComponent(btn.getAttribute('data-addr')),
+      decodeURIComponent(btn.getAttribute('data-source')),
+      decodeURIComponent(btn.getAttribute('data-note'))
+    );
+  });
+
+  /* ---------- Tool 1: SDAT Property Finder ---------- */
+  $('#sd-run').addEventListener('click', function () {
+    var jur = $('#sd-jur').value;
+    var zip = $('#sd-zip').value.trim();
+    var minval = parseInt($('#sd-minval').value, 10) || 0;
+    var year = $('#sd-year').value;
+    var ownerMode = $('#sd-owner').value;
+    var sort = $('#sd-sort').value;
+
+    var where = ["JURSCODE='" + jur + "'", 'NFMTTLVL>=' + minval, "LU='R'", 'ADDRESS IS NOT NULL'];
+    if (/^\d{5}$/.test(zip)) where.push("ZIPCODE='" + zip + "'");
+    if (year) where.push("TRADATE<'" + year + "0101'");
+    if (ownerMode === 'occupied') where.push("OOI='H'");
+    if (ownerMode === 'absentee') where.push("OOI<>'H'");
+    if (ownerMode === 'outofstate') where.push("OWNSTATE<>'MD'", "OWNSTATE<>''");
+
+    var base = SDAT_URL + '?' + new URLSearchParams({
+      where: where.join(' AND '),
+      returnGeometry: 'false',
+      f: 'json'
+    }).toString();
+    var rowsUrl = base + '&' + new URLSearchParams({
+      outFields: 'ADDRESS,CITY,YEARBLT,TRADATE,CONSIDR1,NFMLNDVL,NFMTTLVL,OWNSTATE,OOI,SDATWEBADR,ACRES',
+      orderByFields: sort,
+      resultRecordCount: '50'
+    }).toString();
+    var countUrl = base + '&returnCountOnly=true';
+
+    setStatus('#sd-status', '<span class="spin"></span>Querying Maryland SDAT…');
+    $('#sd-wrap').hidden = true;
+
+    Promise.all([fetchJson(rowsUrl), fetchJson(countUrl).catch(function () { return null; })])
+      .then(function (res) {
+        var data = res[0], countData = res[1];
+        if (data.error) throw new Error(data.error.message || 'query rejected');
+        var feats = data.features || [];
+        var total = countData && countData.count != null ? countData.count : feats.length;
+        var tbody = $('#sd-rows');
+        tbody.innerHTML = '';
+        if (!feats.length) {
+          setStatus('#sd-status', 'No parcels matched — widen the filters (lower min value or loosen tenure).', 'err');
+          return;
+        }
+        feats.forEach(function (f) {
+          var a = f.attributes;
+          var addr = (a.ADDRESS || '').trim();
+          var cityAddr = addr + (a.CITY ? ', ' + a.CITY.trim() : '');
+          var land = a.NFMLNDVL || 0, tot = a.NFMTTLVL || 0;
+          var pct = tot ? Math.round(land / tot * 100) : 0;
+          var flags = '';
+          if (pct >= 55) flags += '<span class="flag-chip flag-teardown">TEARDOWN ECON</span>';
+          if (!a.CONSIDR1) flags += '<span class="flag-chip flag-trust">TRUST/ESTATE XFER</span>';
+          if (a.OWNSTATE && a.OWNSTATE !== 'MD') flags += '<span class="flag-chip flag-oos">OWNER: ' + escapeHtml(a.OWNSTATE) + '</span>';
+          var srcName = ownerMode === 'occupied' ? 'Long-Tenure Equity Map' : 'Absentee & Vacancy';
+          var note = 'Live SDAT: built ' + (a.YEARBLT || '?') + ', owned since ' + fmtTradate(a.TRADATE) +
+            ', land ' + fmtMoney(land) + ' (' + pct + '% of value)';
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + escapeHtml(cityAddr) + '</td>' +
+            '<td>' + escapeHtml(a.YEARBLT || '—') + '</td>' +
+            '<td style="white-space:nowrap;">' + fmtTradate(a.TRADATE) + '</td>' +
+            '<td>' + (a.CONSIDR1 ? fmtMoney(a.CONSIDR1) : '$0') + '</td>' +
+            '<td>' + fmtMoney(land) + '</td>' +
+            '<td>' + fmtMoney(tot) + '</td>' +
+            '<td><span class="landpct' + (pct >= 55 ? ' hi' : '') + '">' + pct + '%</span></td>' +
+            '<td>' + (flags || '—') + '</td>' +
+            '<td>' + (a.SDATWEBADR ? '<a class="rec-link" href="' + escapeHtml(a.SDATWEBADR) + '" target="_blank" rel="noopener noreferrer">SDAT ↗</a>' : '—') + '</td>' +
+            '<td>' + pipeBtn(cityAddr, srcName, note) + '</td>';
+          tbody.appendChild(tr);
+        });
+        $('#sd-wrap').hidden = false;
+        setStatus('#sd-status', total.toLocaleString() + ' matching parcels in state records — showing top ' + feats.length + '.', 'ok');
+      })
+      .catch(function (err) {
+        setStatus('#sd-status', 'State endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
+      });
+  });
+
+  /* ---------- Tool 2: Permit Radar Live ---------- */
+  function zipList(raw) {
+    return raw.split(',').map(function (z) { return z.trim(); })
+      .filter(function (z) { return /^\d{5}$/.test(z); });
+  }
+  function sinceIso(months) {
+    var d = new Date();
+    d.setMonth(d.getMonth() - months);
+    return d.toISOString().slice(0, 10) + 'T00:00:00';
+  }
+
+  $('#pm-run').addEventListener('click', function () {
+    var type = $('#pm-type').value;
+    var zips = zipList($('#pm-zips').value);
+    if (!zips.length) { setStatus('#pm-status', 'Enter at least one 5-digit zip.', 'err'); return; }
+    var months = parseInt($('#pm-months').value, 10);
+    var zipsIn = "('" + zips.join("','") + "')";
+
+    var params;
+    if (type === 'demo') {
+      params = {
+        '$where': 'zip in' + zipsIn + " AND addeddate > '" + sinceIso(months) + "'",
+        '$order': 'addeddate DESC', '$limit': '60'
+      };
+    } else {
+      params = {
+        '$where': 'zip in' + zipsIn + " AND worktype='CONSTRUCT' AND usecode='SINGLE FAMILY DWELLING' AND addeddate > '" + sinceIso(months) + "'",
+        '$order': 'addeddate DESC', '$limit': '60'
+      };
+    }
+    var url = SOCRATA + (type === 'demo' ? DS_DEMO : DS_RES) + '.json?' + new URLSearchParams(params).toString();
+
+    setStatus('#pm-status', '<span class="spin"></span>Querying dataMontgomery…');
+    $('#pm-wrap').hidden = true;
+
+    fetchJson(url)
+      .then(function (rows) {
+        var tbody = $('#pm-rows');
+        tbody.innerHTML = '';
+        if (!rows.length) {
+          setStatus('#pm-status', 'No permits in that window — extend the look-back.', 'err');
+          return;
+        }
+        rows.forEach(function (p) {
+          var addr = [p.stno, p.stname, p.suffix].filter(Boolean).join(' ');
+          var cityAddr = addr + (p.city ? ', ' + p.city : '') + (p.zip ? ' ' + p.zip : '');
+          var detail = type === 'demo'
+            ? (p.applicationtype || p.worktype || '')
+            : ((p.description || '').slice(0, 90) + (p.declaredvaluation ? ' · declared ' + fmtMoney(p.declaredvaluation) : ''));
+          var maps = 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr);
+          var note = type === 'demo'
+            ? 'Permit adjacency — demolition filed ' + fmtIso(p.addeddate) + '; canvass dated homes on this street'
+            : 'Active builder site (new SFD construction) — applicant is a cash-buyer prospect';
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td style="white-space:nowrap;">' + fmtIso(p.addeddate) + '</td>' +
+            '<td>' + escapeHtml(cityAddr) + '</td>' +
+            '<td>' + escapeHtml(p.status || '—') + '</td>' +
+            '<td>' + escapeHtml(detail || '—') + '</td>' +
+            '<td><a class="rec-link" href="' + maps + '" target="_blank" rel="noopener noreferrer">Map ↗</a></td>' +
+            '<td>' + pipeBtn(cityAddr, 'Teardown Permit Radar', note) + '</td>';
+          tbody.appendChild(tr);
+        });
+        $('#pm-wrap').hidden = false;
+        setStatus('#pm-status', rows.length + ' permits found (newest first).', 'ok');
+      })
+      .catch(function (err) {
+        setStatus('#pm-status', 'County endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
+      });
+  });
+
+  /* ---------- Tool 3: Code Violation Sweep ---------- */
+  $('#cv-run').addEventListener('click', function () {
+    var zips = zipList($('#cv-zips').value);
+    if (!zips.length) { setStatus('#cv-status', 'Enter at least one 5-digit zip.', 'err'); return; }
+    var months = parseInt($('#cv-months').value, 10);
+    var zipsIn = "('" + zips.join("','") + "')";
+    var url = SOCRATA + DS_CODE + '.json?' + new URLSearchParams({
+      '$select': 'street_address,city,zip_code,count(*) AS cnt,max(date_filed) AS filed,max(item) AS sample_item',
+      '$where': 'zip_code in' + zipsIn + " AND date_filed > '" + sinceIso(months) + "' AND item != 'No Violations Observed'",
+      '$group': 'street_address,city,zip_code',
+      '$order': 'filed DESC',
+      '$limit': '60'
+    }).toString();
+
+    setStatus('#cv-status', '<span class="spin"></span>Querying code enforcement…');
+    $('#cv-wrap').hidden = true;
+
+    fetchJson(url)
+      .then(function (rows) {
+        var tbody = $('#cv-rows');
+        tbody.innerHTML = '';
+        if (!rows.length) {
+          setStatus('#cv-status', 'No cases in these zips for that window — that itself is data. Extend the look-back.', 'err');
+          return;
+        }
+        rows.forEach(function (v) {
+          var cityAddr = (v.street_address || '') + (v.city ? ', ' + v.city : '') + (v.zip_code ? ' ' + v.zip_code : '');
+          var note = 'Code enforcement: ' + (v.cnt || 1) + ' violation(s), latest ' + fmtIso(v.filed) + ' — stack with SDAT owner check';
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td style="white-space:nowrap;">' + fmtIso(v.filed) + '</td>' +
+            '<td>' + escapeHtml(cityAddr) + '</td>' +
+            '<td>' + escapeHtml(v.sample_item || '—') + '</td>' +
+            '<td>' + escapeHtml(v.cnt || '1') + '</td>' +
+            '<td>' + pipeBtn(cityAddr, 'Absentee & Vacancy', note) + '</td>';
+          tbody.appendChild(tr);
+        });
+        $('#cv-wrap').hidden = false;
+        setStatus('#cv-status', rows.length + ' properties with open or recent cases.', 'ok');
+      })
+      .catch(function (err) {
+        setStatus('#cv-status', 'County endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
+      });
+  });
+
   renderChecks();
   renderLeads();
 })();

@@ -424,6 +424,58 @@ td select { min-height: 38px; padding: 7px 8px; font-size: 0.82rem; width: auto;
 }
 .legal-note strong { color: var(--color-red); }
 
+/* ---------- Live Intel ---------- */
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-green); margin-left: 2px;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.8);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.live-badge {
+  display: inline-block; vertical-align: middle;
+  font-family: var(--font-eyebrow); font-size: 0.6rem; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--color-green);
+  border: 1px solid rgba(74,222,128,0.45); border-radius: 999px;
+  padding: 4px 12px; margin-left: 10px;
+}
+
+a.live-link { text-decoration: none; cursor: pointer; border-color: rgba(74,222,128,0.5); color: var(--color-green); }
+a.live-link:hover { background: rgba(74,222,128,0.1); }
+
+.card.tool { margin-bottom: 22px; }
+.tool__head { margin-bottom: 6px; }
+.tool__head h3 { margin-bottom: 6px; }
+.tool__head .muted { font-size: 0.88rem; max-width: 85ch; }
+.tool-grid { margin-top: 8px; }
+.tool-grid > div { min-width: 0; }
+@media (min-width: 900px) { .tool-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.tool-status { margin-left: 14px; font-size: 0.84rem; color: var(--color-text-muted); }
+.tool-status.err { color: var(--color-red); }
+.tool-status.ok { color: var(--color-green); }
+
+.spin {
+  display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 7px;
+  border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--color-gold);
+  border-radius: 50%; animation: rot 0.8s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.flag-chip {
+  display: inline-block; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px; margin: 1px 2px 1px 0; white-space: nowrap;
+}
+.flag-teardown { background: rgba(200,164,92,0.18); color: var(--color-gold); }
+.flag-trust { background: rgba(251,191,36,0.14); color: var(--color-amber); }
+.flag-oos { background: rgba(248,113,113,0.13); color: var(--color-red); }
+.landpct { font-variant-numeric: tabular-nums; font-weight: 650; }
+.landpct.hi { color: var(--color-gold); }
+
+td .btn.small { white-space: nowrap; }
+.rec-link { color: var(--color-accent-light); font-size: 0.8rem; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
