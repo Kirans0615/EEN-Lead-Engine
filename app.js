@@ -410,6 +410,7 @@
   var DS_DEMO = 'b6ht-fw3x';   // Demolition Permits
   var DS_RES = 'm88u-pqki';    // Residential Permits
   var DS_CODE = 'k9nj-z35d';   // Housing Code Violations
+  var FFX_BUILDING_PERMITS_URL = 'https://www.fairfaxcounty.gov/lambert/rest/services/LDS/DevelopmentTracker/FeatureServer/5/query';
 
   function fmtMoney(n) {
     n = parseInt(n, 10) || 0;
@@ -782,6 +783,38 @@
     var d = new Date();
     d.setMonth(d.getMonth() - months);
     return d.toISOString().slice(0, 10) + 'T00:00:00';
+  }
+  function fetchFairfaxPermits(zips, months) {
+    var zipsIn = "('" + zips.join("','") + "')";
+    var since = sinceIso(months).slice(0, 10); // 'YYYY-MM-DD'
+    var where = 'ZIP_CODE IN' + zipsIn + " AND APPTYPEALIAS='Residential New' AND SUBMITTED_DATE > timestamp '" + since + " 00:00:00'";
+    var params = {
+      where: where,
+      outFields: 'RECORDID,APPTYPEALIAS,RECORD_STATUS,SUBMITTED_DATE,ISSUED_DATE,ESTIMATED_COST,ADDRESS_1,ADDRESS_2,CITY,ZIP_CODE',
+      orderByFields: 'SUBMITTED_DATE DESC',
+      resultRecordCount: '60',
+      f: 'json'
+    };
+    var url = FFX_BUILDING_PERMITS_URL + '?' + new URLSearchParams(params).toString();
+
+    return fetchJson(url).then(function (data) {
+      if (data.error) throw new Error(data.error.message || 'query rejected');
+      var feats = data.features || [];
+      return feats.map(function (f) {
+        var a = f.attributes;
+        var addr = [a.ADDRESS_1, a.ADDRESS_2].filter(Boolean).join(' ');
+        var cityAddr = addr + (a.CITY ? ', ' + a.CITY : '') + (a.ZIP_CODE ? ' ' + a.ZIP_CODE : '');
+        var detail = a.ESTIMATED_COST ? 'declared ' + fmtMoney(a.ESTIMATED_COST) : '';
+        return {
+          dateStr: fmtIso(a.SUBMITTED_DATE),
+          cityAddr: cityAddr,
+          status: a.RECORD_STATUS || '',
+          detail: detail,
+          mapsUrl: 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr),
+          note: 'Active builder site (Fairfax new-construction permit) — applicant is a cash-buyer prospect'
+        };
+      });
+    });
   }
 
   $('#pm-run').addEventListener('click', function () {
