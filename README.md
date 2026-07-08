@@ -19,7 +19,8 @@ A single-page static app (no build step, no server) with these modules:
    SDAT Property Finder (MD iMAP ArcGIS REST — two profiles: **motivated homeowners**
    [tired landlords, absentee/out-of-state, long-tenure, trust transfers] and **development
    land** [near-vacant lots]; includes the owner's real **mailing address** automatically),
-   Teardown Permit Radar (dataMontgomery permits, daily), and Code Violation Sweep. Results
+   Teardown Permit Radar (dataMontgomery permits, daily, plus Fairfax County VA new-construction
+   permits), and Code Violation Sweep. Results
    push straight into the Pipeline Tracker.
 2c. **Skip Trace** — resolves owner **phone + email** via the Tracerfy API
    (`POST /v1/api/trace/lookup/`, Bearer token). Fires only on an explicit per-lead click

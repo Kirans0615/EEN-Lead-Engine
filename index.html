@@ -374,7 +374,7 @@
 
         <div class="how-it-works">
           <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this section works</p>
-          <p>Tool 1 queries the <strong>State of Maryland's SDAT parcel database</strong> (via MD iMAP) for two target profiles: <strong>motivated homeowners</strong> (tired landlords, absentee, long-tenure, trust transfers) and <strong>development land</strong> (near-vacant lots). Tool 2 queries <strong>Montgomery County's live permit system</strong> for building activity. Tool 3 pulls <strong>housing-code violations</strong>. All three are free public records with the owner's <strong>mailing address included automatically</strong> — a free skip-trace of where to reach them. To resolve phone and email, each result has a <strong>Skip Trace</strong> button (paid Tracerfy lookup — see the bar below).</p>
+          <p>Tool 1 queries the <strong>State of Maryland's SDAT parcel database</strong> (via MD iMAP) for two target profiles: <strong>motivated homeowners</strong> (tired landlords, absentee, long-tenure, trust transfers) and <strong>development land</strong> (near-vacant lots). Tool 2 queries <strong>Montgomery County, MD and Fairfax County, VA's</strong> live permit systems for building activity — pick the county in the tool itself. Tool 3 pulls <strong>housing-code violations</strong>. All three are free public records with the owner's <strong>mailing address included automatically</strong> — a free skip-trace of where to reach them. To resolve phone and email, each result has a <strong>Skip Trace</strong> button (paid Tracerfy lookup — see the bar below).</p>
         </div>
 
         <details class="card skiptrace-bar" id="st-settings">
@@ -488,9 +488,16 @@
         <div class="card tool">
           <div class="tool__head">
             <h3>2 · Teardown Permit Radar — Live</h3>
-            <p class="muted">Engine 02 running on Montgomery County's live permit feed (updated daily). Demolition permits show you tomorrow's construction sites — every dated home nearby just became a provable teardown lot. New-construction permits reveal which builders are actively buying.</p>
+            <p class="muted" id="pm-desc">Engine 02 running on Montgomery County's live permit feed (updated daily). Demolition permits show you tomorrow's construction sites — every dated home nearby just became a provable teardown lot. New-construction permits reveal which builders are actively buying.</p>
           </div>
           <div class="calc-grid tool-grid">
+            <div>
+              <label class="f-label" for="pm-county">County</label>
+              <select id="pm-county">
+                <option value="mont" selected>Montgomery, MD</option>
+                <option value="ffx">Fairfax, VA</option>
+              </select>
+            </div>
             <div>
               <label class="f-label" for="pm-type">Permit type</label>
               <select id="pm-type">
@@ -501,6 +508,7 @@
             <div>
               <label class="f-label" for="pm-zips">Zip codes (comma-separated)</label>
               <input type="text" id="pm-zips" value="20814,20815,20816,20817,20854,20895" autocomplete="off">
+              <p class="helper" id="pm-zips-hint">Montgomery luxury zips: 20814/15/16/17 Bethesda–Chevy Chase, 20854 Potomac, 20895 Kensington.</p>
             </div>
             <div>
               <label class="f-label" for="pm-months">Look back</label>
@@ -522,7 +530,7 @@
               <tbody id="pm-rows"></tbody>
             </table>
           </div>
-          <p class="helper" style="margin-top:10px;">Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.</p>
+          <p class="helper" style="margin-top:10px;" id="pm-source-note">Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.</p>
         </div>
 
         <!-- Tool 3: Code Violation Sweep -->
