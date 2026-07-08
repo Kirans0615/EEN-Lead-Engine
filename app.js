@@ -584,28 +584,21 @@
     return html;
   }
 
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-skip]');
-    if (!btn) return;
+  // Shared by every skip-trace entry point (Live Intel result rows, Pipeline leads,
+  // and manual Property Lookup): confirm, call Tracerfy, track credits, render results.
+  // renderTo(html) decides where the result panel goes — a table row or a plain div.
+  function performSkipTrace(addr, city, state, zip, btn, renderTo) {
     var token = getToken();
     if (!token) {
       toast('Add your Tracerfy token in Skip Trace settings first');
       var s = $('#st-settings'); if (s) { s.open = true; s.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
       return;
     }
-    var addr = decodeURIComponent(btn.getAttribute('data-addr'));
-    var city = decodeURIComponent(btn.getAttribute('data-city'));
-    var state = decodeURIComponent(btn.getAttribute('data-state'));
-    var zip = decodeURIComponent(btn.getAttribute('data-zip'));
-
     if (!confirm('Skip trace ' + addr + '?\n\nThis calls the paid Tracerfy API and may cost several credits (billed per contact found). Continue?')) return;
 
     var origText = btn.textContent;
     btn.disabled = true;
     btn.innerHTML = '<span class="spin"></span>Tracing…';
-
-    var row = btn.closest('tr');
-    var isTable = !!row;
 
     fetch(TRACERFY_URL, {
       method: 'POST',
@@ -622,19 +615,7 @@
         renderCreditPill();
         btn.disabled = false;
         btn.textContent = data.hit ? '✓ Traced' : '○ No hit';
-        var panelHtml = renderPersons(data);
-        if (isTable) {
-          var colspan = row.children.length;
-          var next = row.nextElementSibling;
-          if (next && next.classList.contains('skip-panel')) next.remove();
-          var pr = document.createElement('tr');
-          pr.className = 'skip-panel';
-          pr.innerHTML = '<td colspan="' + colspan + '">' + panelHtml + '</td>';
-          row.after(pr);
-        } else {
-          var host = document.getElementById(btn.getAttribute('data-panel'));
-          if (host) host.innerHTML = panelHtml;
-        }
+        renderTo(renderPersons(data));
         toast(data.hit ? 'Trace complete · ' + (data.credits_deducted || 0) + ' credits' : 'No contact match');
       })
       .catch(function (err) {
@@ -642,6 +623,46 @@
         btn.textContent = origText;
         toast('Skip trace failed: ' + err.message);
       });
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-skip]');
+    if (!btn) return;
+    var addr = decodeURIComponent(btn.getAttribute('data-addr'));
+    var city = decodeURIComponent(btn.getAttribute('data-city'));
+    var state = decodeURIComponent(btn.getAttribute('data-state'));
+    var zip = decodeURIComponent(btn.getAttribute('data-zip'));
+
+    var row = btn.closest('tr');
+    var renderTo;
+    if (row) {
+      renderTo = function (panelHtml) {
+        var colspan = row.children.length;
+        var next = row.nextElementSibling;
+        if (next && next.classList.contains('skip-panel')) next.remove();
+        var pr = document.createElement('tr');
+        pr.className = 'skip-panel';
+        pr.innerHTML = '<td colspan="' + colspan + '">' + panelHtml + '</td>';
+        row.after(pr);
+      };
+    } else {
+      var host = document.getElementById(btn.getAttribute('data-panel'));
+      renderTo = function (panelHtml) { if (host) host.innerHTML = panelHtml; };
+    }
+
+    performSkipTrace(addr, city, state, zip, btn, renderTo);
+  });
+
+  /* ---------- Property Lookup: manual skip trace (not from a live query) ---------- */
+  $('#lu-run').addEventListener('click', function () {
+    var raw = $('#lu-addr').value.trim();
+    if (!raw) { setStatus('#lu-status', 'Enter an address first.', 'err'); return; }
+    var p = parseAddr(raw);
+    if (!p.addr) { setStatus('#lu-status', 'Could not read an address from that input.', 'err'); return; }
+    setStatus('#lu-status', '', '');
+    performSkipTrace(p.addr, p.city, p.state, p.zip, this, function (html) {
+      $('#lu-panel').innerHTML = html;
+    });
   });
 
   renderCreditPill();
