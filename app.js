@@ -656,6 +656,33 @@
     $('#sd-minval').value = land ? '400000' : '900000';
   });
 
+  /* Permit Radar: county switch reconfigures type options, zip defaults, and copy */
+  var PM_COUNTY_CONFIG = {
+    mont: {
+      zips: '20814,20815,20816,20817,20854,20895',
+      zipsHint: 'Montgomery luxury zips: 20814/15/16/17 Bethesda–Chevy Chase, 20854 Potomac, 20895 Kensington.',
+      typeOptions: '<option value="demo" selected>Demolition (teardown signals)</option>' +
+        '<option value="build">New single-family construction (active builders)</option>',
+      desc: 'Engine 02 running on Montgomery County\'s live permit feed (updated daily). Demolition permits show you tomorrow\'s construction sites — every dated home nearby just became a provable teardown lot. New-construction permits reveal which builders are actively buying.',
+      sourceNote: 'Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.'
+    },
+    ffx: {
+      zips: '22101,22102,22066,22181,22182,22124',
+      zipsHint: 'Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22181/22182 Vienna, 22124 Oakton.',
+      typeOptions: '<option value="build" selected>New single-family construction (active builders)</option>',
+      desc: 'Engine 02 running on Fairfax County\'s live permit feed (updated nightly). Fairfax does not publish demolition permits through this public feed, so this jurisdiction runs new-construction / active-builder mode only — every new-construction permit applicant is a cash-buyer prospect worth calling.',
+      sourceNote: 'Source: Fairfax County GIS &amp; Mapping Services open data (Recent Building Permits, refreshed nightly). Adding a permit to the pipeline logs it as an active-builder lead — the applicant is a cash-buyer prospect.'
+    }
+  };
+  $('#pm-county').addEventListener('change', function () {
+    var cfg = PM_COUNTY_CONFIG[this.value];
+    $('#pm-type').innerHTML = cfg.typeOptions;
+    $('#pm-zips').value = cfg.zips;
+    $('#pm-zips-hint').textContent = cfg.zipsHint;
+    $('#pm-desc').textContent = cfg.desc;
+    $('#pm-source-note').innerHTML = cfg.sourceNote;
+  });
+
   /* ---------- Tool 1: SDAT Property Finder ---------- */
   $('#sd-run').addEventListener('click', function () {
     var jur = $('#sd-jur').value;
