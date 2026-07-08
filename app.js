@@ -659,16 +659,16 @@
   /* Permit Radar: county switch reconfigures type options, zip defaults, and copy */
   var PM_COUNTY_CONFIG = {
     mont: {
-      zips: '20814,20815,20816,20817,20854,20895',
-      zipsHint: 'Montgomery luxury zips: 20814/15/16/17 Bethesda–Chevy Chase, 20854 Potomac, 20895 Kensington.',
+      zips: '20814,20815,20816,20817,20852,20854,20895',
+      zipsHint: 'Montgomery luxury zips: 20814/15/16/17 Bethesda–Chevy Chase, 20852 N. Bethesda, 20854 Potomac, 20895 Kensington.',
       typeOptions: '<option value="demo" selected>Demolition (teardown signals)</option>' +
         '<option value="build">New single-family construction (active builders)</option>',
       desc: 'Engine 02 running on Montgomery County\'s live permit feed (updated daily). Demolition permits show you tomorrow\'s construction sites — every dated home nearby just became a provable teardown lot. New-construction permits reveal which builders are actively buying.',
       sourceNote: 'Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.'
     },
     ffx: {
-      zips: '22101,22102,22066,22181,22182,22124',
-      zipsHint: 'Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22181/22182 Vienna, 22124 Oakton.',
+      zips: '22101,22102,22066,22180,22181,22182,22124',
+      zipsHint: 'Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton.',
       typeOptions: '<option value="build" selected>New single-family construction (active builders)</option>',
       desc: 'Engine 02 running on Fairfax County\'s live permit feed (updated nightly). Fairfax does not publish demolition permits through this public feed, so this jurisdiction runs new-construction / active-builder mode only — every new-construction permit applicant is a cash-buyer prospect worth calling.',
       sourceNote: 'Source: Fairfax County GIS &amp; Mapping Services open data (Recent Building Permits, refreshed nightly). Adding a permit to the pipeline logs it as an active-builder lead — the applicant is a cash-buyer prospect.'
@@ -819,7 +819,7 @@
       where: where,
       outFields: 'RECORDID,APPTYPEALIAS,RECORD_STATUS,SUBMITTED_DATE,ISSUED_DATE,ESTIMATED_COST,ADDRESS_1,ADDRESS_2,CITY,ZIP_CODE',
       orderByFields: 'SUBMITTED_DATE DESC',
-      resultRecordCount: '60',
+      resultRecordCount: '500',
       f: 'json'
     };
     var url = FFX_BUILDING_PERMITS_URL + '?' + new URLSearchParams(params).toString();
@@ -850,12 +850,12 @@
     if (type === 'demo') {
       params = {
         '$where': 'zip in' + zipsIn + " AND addeddate > '" + sinceIso(months) + "'",
-        '$order': 'addeddate DESC', '$limit': '60'
+        '$order': 'addeddate DESC', '$limit': '500'
       };
     } else {
       params = {
         '$where': 'zip in' + zipsIn + " AND worktype='CONSTRUCT' AND usecode='SINGLE FAMILY DWELLING' AND addeddate > '" + sinceIso(months) + "'",
-        '$order': 'addeddate DESC', '$limit': '60'
+        '$order': 'addeddate DESC', '$limit': '500'
       };
     }
     var url = SOCRATA + (type === 'demo' ? DS_DEMO : DS_RES) + '.json?' + new URLSearchParams(params).toString();
