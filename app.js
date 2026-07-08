@@ -817,13 +817,8 @@
     });
   }
 
-  $('#pm-run').addEventListener('click', function () {
-    var type = $('#pm-type').value;
-    var zips = zipList($('#pm-zips').value);
-    if (!zips.length) { setStatus('#pm-status', 'Enter at least one 5-digit zip.', 'err'); return; }
-    var months = parseInt($('#pm-months').value, 10);
+  function fetchMontgomeryPermits(type, zips, months) {
     var zipsIn = "('" + zips.join("','") + "')";
-
     var params;
     if (type === 'demo') {
       params = {
@@ -838,40 +833,66 @@
     }
     var url = SOCRATA + (type === 'demo' ? DS_DEMO : DS_RES) + '.json?' + new URLSearchParams(params).toString();
 
-    setStatus('#pm-status', '<span class="spin"></span>Querying dataMontgomery…');
+    return fetchJson(url).then(function (rows) {
+      return rows.map(function (p) {
+        var addr = [p.stno, p.stname, p.suffix].filter(Boolean).join(' ');
+        var cityAddr = addr + (p.city ? ', ' + p.city : '') + (p.zip ? ' ' + p.zip : '');
+        var detail = type === 'demo'
+          ? (p.applicationtype || p.worktype || '')
+          : ((p.description || '').slice(0, 90) + (p.declaredvaluation ? ' · declared ' + fmtMoney(p.declaredvaluation) : ''));
+        var note = type === 'demo'
+          ? 'Permit adjacency — demolition filed ' + fmtIso(p.addeddate) + '; canvass dated homes on this street'
+          : 'Active builder site (new SFD construction) — applicant is a cash-buyer prospect';
+        return {
+          dateStr: fmtIso(p.addeddate),
+          cityAddr: cityAddr,
+          status: p.status || '',
+          detail: detail,
+          mapsUrl: 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr),
+          note: note
+        };
+      });
+    });
+  }
+
+  function renderPermitRows(rows, sourceLabel) {
+    var tbody = $('#pm-rows');
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      setStatus('#pm-status', 'No permits in that window — extend the look-back.', 'err');
+      return;
+    }
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td style="white-space:nowrap;">' + r.dateStr + '</td>' +
+        '<td>' + escapeHtml(r.cityAddr) + '</td>' +
+        '<td>' + escapeHtml(r.status || '—') + '</td>' +
+        '<td>' + escapeHtml(r.detail || '—') + '</td>' +
+        '<td><a class="rec-link" href="' + r.mapsUrl + '" target="_blank" rel="noopener noreferrer">Map ↗</a></td>' +
+        '<td>' + pipeBtn(r.cityAddr, sourceLabel, r.note) + '</td>';
+      tbody.appendChild(tr);
+    });
+    $('#pm-wrap').hidden = false;
+    setStatus('#pm-status', rows.length + ' permits found (newest first).', 'ok');
+  }
+
+  $('#pm-run').addEventListener('click', function () {
+    var county = $('#pm-county').value;
+    var zips = zipList($('#pm-zips').value);
+    if (!zips.length) { setStatus('#pm-status', 'Enter at least one 5-digit zip.', 'err'); return; }
+    var months = parseInt($('#pm-months').value, 10);
+
+    setStatus('#pm-status', '<span class="spin"></span>Querying ' + (county === 'ffx' ? 'Fairfax County…' : 'dataMontgomery…'));
     $('#pm-wrap').hidden = true;
 
-    fetchJson(url)
-      .then(function (rows) {
-        var tbody = $('#pm-rows');
-        tbody.innerHTML = '';
-        if (!rows.length) {
-          setStatus('#pm-status', 'No permits in that window — extend the look-back.', 'err');
-          return;
-        }
-        rows.forEach(function (p) {
-          var addr = [p.stno, p.stname, p.suffix].filter(Boolean).join(' ');
-          var cityAddr = addr + (p.city ? ', ' + p.city : '') + (p.zip ? ' ' + p.zip : '');
-          var detail = type === 'demo'
-            ? (p.applicationtype || p.worktype || '')
-            : ((p.description || '').slice(0, 90) + (p.declaredvaluation ? ' · declared ' + fmtMoney(p.declaredvaluation) : ''));
-          var maps = 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr);
-          var note = type === 'demo'
-            ? 'Permit adjacency — demolition filed ' + fmtIso(p.addeddate) + '; canvass dated homes on this street'
-            : 'Active builder site (new SFD construction) — applicant is a cash-buyer prospect';
-          var tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td style="white-space:nowrap;">' + fmtIso(p.addeddate) + '</td>' +
-            '<td>' + escapeHtml(cityAddr) + '</td>' +
-            '<td>' + escapeHtml(p.status || '—') + '</td>' +
-            '<td>' + escapeHtml(detail || '—') + '</td>' +
-            '<td><a class="rec-link" href="' + maps + '" target="_blank" rel="noopener noreferrer">Map ↗</a></td>' +
-            '<td>' + pipeBtn(cityAddr, 'Teardown Permit Radar', note) + '</td>';
-          tbody.appendChild(tr);
-        });
-        $('#pm-wrap').hidden = false;
-        setStatus('#pm-status', rows.length + ' permits found (newest first).', 'ok');
-      })
+    var request = county === 'ffx'
+      ? fetchFairfaxPermits(zips, months)
+      : fetchMontgomeryPermits($('#pm-type').value, zips, months);
+    var sourceLabel = county === 'ffx' ? 'Teardown Permit Radar — Fairfax, VA' : 'Teardown Permit Radar';
+
+    request
+      .then(function (rows) { renderPermitRows(rows, sourceLabel); })
       .catch(function (err) {
         setStatus('#pm-status', 'County endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
       });
