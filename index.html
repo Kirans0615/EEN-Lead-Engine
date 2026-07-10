@@ -531,11 +531,11 @@
           </div>
           <div class="table-wrap" id="pm-wrap" hidden>
             <table aria-label="Permit results">
-              <thead><tr><th>Filed</th><th>Address</th><th>Status</th><th>Detail</th><th>Map</th><th><span class="sr-only">Add</span></th></tr></thead>
+              <thead><tr><th>Filed</th><th>Address</th><th>Status</th><th>Detail</th><th>Lot Purchase</th><th>Map</th><th><span class="sr-only">Add</span></th></tr></thead>
               <tbody id="pm-rows"></tbody>
             </table>
           </div>
-          <p class="helper" style="margin-top:10px;" id="pm-source-note">Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.</p>
+          <p class="helper" style="margin-top:10px;" id="pm-source-note">Source: dataMontgomery (Montgomery County open data, refreshed daily). New-construction rows also cross-reference Maryland SDAT for the <strong>Lot Purchase</strong> column — what the builder paid, the lot size, and the owner's mailing address (a builder-identity proxy — SDAT withholds owner names). That lookup runs against a slow state API (~1/sec), so large result sets can take several minutes to fully populate. Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.</p>
         </div>
 
         <!-- Tool 3: Code Violation Sweep -->

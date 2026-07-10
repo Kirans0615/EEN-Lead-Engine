@@ -20,8 +20,10 @@ A single-page static app (no build step, no server) with these modules:
    [tired landlords, absentee/out-of-state, long-tenure, trust transfers] and **development
    land** [near-vacant lots]; includes the owner's real **mailing address** automatically),
    Teardown Permit Radar (dataMontgomery permits, daily, plus Fairfax County VA new-construction
-   permits), and Code Violation Sweep. Results
-   push straight into the Pipeline Tracker.
+   permits) — new-construction rows cross-reference each county's tax/parcel records for a
+   **Lot Purchase** column (sale price, lot size, and — Montgomery only — the owner's mailing
+   address as a builder-identity proxy; Fairfax publishes no owner info at all), and Code
+   Violation Sweep. Results push straight into the Pipeline Tracker.
 2c. **Skip Trace** — resolves owner **phone + email** via the Tracerfy API
    (`POST /v1/api/trace/lookup/`, Bearer token). Fires only on an explicit per-lead click
    with a confirm; surfaces DNC + litigator + deceased flags; tracks credit spend locally.

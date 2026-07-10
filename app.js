@@ -411,6 +411,8 @@
   var DS_RES = 'm88u-pqki';    // Residential Permits
   var DS_CODE = 'k9nj-z35d';   // Housing Code Violations
   var FFX_BUILDING_PERMITS_URL = 'https://www.fairfaxcounty.gov/lambert/rest/services/LDS/DevelopmentTracker/FeatureServer/5/query';
+  var FFX_SALES_URL = 'https://services1.arcgis.com/ioennV6PpG5Xodq0/ArcGIS/rest/services/OpenData_A5/FeatureServer/1/query';
+  var FFX_LAND_URL = 'https://services1.arcgis.com/ioennV6PpG5Xodq0/ArcGIS/rest/services/OpenData_A6/FeatureServer/3/query';
 
   function fmtMoney(n) {
     n = parseInt(n, 10) || 0;
@@ -685,14 +687,14 @@
       typeOptions: '<option value="demo" selected>Demolition (teardown signals)</option>' +
         '<option value="build">New single-family construction (active builders)</option>',
       desc: 'Engine 02 running on Montgomery County\'s live permit feed (updated daily). Demolition permits show you tomorrow\'s construction sites — every dated home nearby just became a provable teardown lot. New-construction permits reveal which builders are actively buying.',
-      sourceNote: 'Source: dataMontgomery (Montgomery County open data, refreshed daily). Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.'
+      sourceNote: 'Source: dataMontgomery (Montgomery County open data, refreshed daily). New-construction rows also cross-reference Maryland SDAT for the <strong>Lot Purchase</strong> column — what the builder paid, the lot size, and the owner\'s mailing address (a builder-identity proxy — SDAT withholds owner names). That lookup runs against a slow state API (~1/sec), so large result sets can take several minutes to fully populate. Adding a permit to the pipeline logs it as a <em>permit-adjacency</em> lead — the play is canvassing and mailing the dated homes around the site, not the site itself.'
     },
     ffx: {
       zips: '22101,22102,22066,22180,22181,22182,22124',
       zipsHint: 'Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton.',
       typeOptions: '<option value="build" selected>New single-family construction (active builders)</option>',
       desc: 'Engine 02 running on Fairfax County\'s live permit feed (updated nightly). Fairfax does not publish demolition permits through this public feed, so this jurisdiction runs new-construction / active-builder mode only — every new-construction permit applicant is a cash-buyer prospect worth calling.',
-      sourceNote: 'Source: Fairfax County GIS &amp; Mapping Services open data (Recent Building Permits, refreshed nightly). Adding a permit to the pipeline logs it as an active-builder lead — the applicant is a cash-buyer prospect.'
+      sourceNote: 'Source: Fairfax County GIS &amp; Mapping Services open data (Recent Building Permits, refreshed nightly). Every row cross-references Fairfax\'s tax records for the <strong>Lot Purchase</strong> column — sale price and lot size. Fairfax publishes no owner name or mailing address anywhere in its open data, so unlike Montgomery there\'s no builder-identity field to show here. Adding a permit to the pipeline logs it as an active-builder lead — the applicant is a cash-buyer prospect.'
     }
   };
   $('#pm-county').addEventListener('change', function () {
@@ -838,7 +840,7 @@
     var where = 'ZIP_CODE IN' + zipsIn + " AND APPTYPEALIAS='Residential New' AND SUBMITTED_DATE > timestamp '" + since + " 00:00:00'";
     var params = {
       where: where,
-      outFields: 'RECORDID,APPTYPEALIAS,RECORD_STATUS,SUBMITTED_DATE,ISSUED_DATE,ESTIMATED_COST,ADDRESS_1,ADDRESS_2,CITY,ZIP_CODE',
+      outFields: 'RECORDID,APPTYPEALIAS,RECORD_STATUS,SUBMITTED_DATE,ISSUED_DATE,ESTIMATED_COST,ADDRESS_1,ADDRESS_2,CITY,ZIP_CODE,PARCEL_ID',
       orderByFields: 'SUBMITTED_DATE DESC',
       resultRecordCount: '500',
       f: 'json'
@@ -859,7 +861,8 @@
           status: a.RECORD_STATUS || '',
           detail: detail,
           mapsUrl: 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr),
-          note: 'Active builder site (Fairfax new-construction permit) — applicant is a cash-buyer prospect'
+          note: 'Active builder site (Fairfax new-construction permit) — applicant is a cash-buyer prospect',
+          lotLookup: a.PARCEL_ID ? { kind: 'ffx', parcelId: a.PARCEL_ID } : null
         };
       });
     });
@@ -897,10 +900,79 @@
           status: p.status || '',
           detail: detail,
           mapsUrl: 'https://www.google.com/maps/search/' + encodeURIComponent(cityAddr),
-          note: note
+          note: note,
+          lotLookup: (type === 'build' && p.stno && p.stname && p.zip)
+            ? { kind: 'mont', stno: p.stno, stname: p.stname, zip: p.zip }
+            : null
         };
       });
     });
+  }
+
+  /* Lot Purchase: for new-construction rows only, cross-references the county's tax/parcel
+     records (a different system than the permit feed) to surface what the builder paid for
+     the lot and its size. MD joins by address (SDAT, same source Tool 1 uses); Fairfax joins
+     by PARCEL_ID against its Sales + Land tables. Fairfax publishes no owner name or mailing
+     address anywhere in its open data, so — unlike MD — there is no builder-identity field to
+     show; only price and lot size are available there. */
+  function fetchMontgomeryLotIntel(lookup) {
+    var where = "JURSCODE='MONT' AND ADDRESS LIKE '" + lookup.stno + ' ' + lookup.stname + "%' AND ZIPCODE='" + lookup.zip + "'";
+    var url = SDAT_URL + '?' + new URLSearchParams({
+      where: where,
+      outFields: 'CONSIDR1,ACRES,TRADATE,OWNADD1,OWNCITY,OWNSTATE,OWNERZIP',
+      orderByFields: 'TRADATE DESC',
+      resultRecordCount: '1',
+      returnGeometry: 'false',
+      f: 'json'
+    }).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error || !data.features || !data.features.length) return null;
+      var a = data.features[0].attributes;
+      var ownerCity = [a.OWNCITY, a.OWNSTATE].filter(Boolean).join(' ');
+      var ownerAddr = [a.OWNADD1, ownerCity, a.OWNERZIP].filter(Boolean).join(', ');
+      return { price: a.CONSIDR1 || 0, acres: a.ACRES || null, ownerAddr: ownerAddr || null };
+    });
+  }
+
+  function fetchFairfaxLotIntel(lookup) {
+    var pid = "'" + lookup.parcelId + "'";
+    var salesUrl = FFX_SALES_URL + '?' + new URLSearchParams({
+      where: 'PARID=' + pid, outFields: 'PRICE,SALEDT', orderByFields: 'SALEDT DESC',
+      resultRecordCount: '1', f: 'json'
+    }).toString();
+    var landUrl = FFX_LAND_URL + '?' + new URLSearchParams({
+      where: 'PARID=' + pid, outFields: 'ACRES', resultRecordCount: '1', f: 'json'
+    }).toString();
+    return Promise.all([fetchJson(salesUrl), fetchJson(landUrl)]).then(function (res) {
+      var sale = res[0].features && res[0].features[0] ? res[0].features[0].attributes : null;
+      var land = res[1].features && res[1].features[0] ? res[1].features[0].attributes : null;
+      if (!sale && !land) return null;
+      return { price: sale ? (sale.PRICE || 0) : null, acres: land ? land.ACRES : null, ownerAddr: null };
+    });
+  }
+
+  function formatLotIntel(info) {
+    if (!info) return 'No sale record found';
+    var parts = [];
+    if (info.price === 0) parts.push('$0 (family/trust transfer)');
+    else if (info.price) parts.push(fmtMoney(info.price));
+    if (info.acres) parts.push(info.acres.toFixed(2) + ' ac');
+    if (info.ownerAddr) parts.push('mails to ' + info.ownerAddr);
+    return parts.length ? parts.join(' · ') : 'No sale record found';
+  }
+
+  // Concurrency-limited pool: runs `worker` over `items` with at most `limit` in flight at
+  // once, so a large result set doesn't fire hundreds of simultaneous requests at a free
+  // public county endpoint. Each item's result lands as soon as it's ready, independent of
+  // the others, rather than waiting for the whole batch (Promise.all) to finish.
+  function runPool(items, limit, worker) {
+    var i = 0;
+    function next() {
+      if (i >= items.length) return;
+      var idx = i++;
+      worker(items[idx], idx).catch(function () {}).then(next);
+    }
+    for (var k = 0; k < Math.min(limit, items.length); k++) next();
   }
 
   function renderPermitRows(rows, sourceLabel) {
@@ -910,19 +982,40 @@
       setStatus('#pm-status', 'No permits in that window — extend the look-back.', 'err');
       return;
     }
+    var lotJobs = [];
     rows.forEach(function (r) {
       var tr = document.createElement('tr');
+      var lotCell = r.lotLookup ? '<span class="spin"></span>Loading…' : '—';
       tr.innerHTML =
         '<td style="white-space:nowrap;">' + r.dateStr + '</td>' +
         '<td>' + escapeHtml(r.cityAddr) + '</td>' +
         '<td>' + escapeHtml(r.status || '—') + '</td>' +
         '<td>' + escapeHtml(r.detail || '—') + '</td>' +
+        '<td class="lot-cell">' + lotCell + '</td>' +
         '<td><a class="rec-link" href="' + r.mapsUrl + '" target="_blank" rel="noopener noreferrer">Map ↗</a></td>' +
         '<td>' + pipeBtn(r.cityAddr, sourceLabel, r.note) + '</td>';
       tbody.appendChild(tr);
+      if (r.lotLookup) lotJobs.push({ lookup: r.lotLookup, cell: tr.querySelector('.lot-cell') });
     });
+    var baseStatus = rows.length + ' permits found (newest first).';
     $('#pm-wrap').hidden = false;
-    setStatus('#pm-status', rows.length + ' permits found (newest first).', 'ok');
+    setStatus('#pm-status', baseStatus, 'ok');
+
+    if (lotJobs.length) {
+      var lotDone = 0;
+      runPool(lotJobs, 6, function (job) {
+        var fetcher = job.lookup.kind === 'ffx' ? fetchFairfaxLotIntel : fetchMontgomeryLotIntel;
+        return fetcher(job.lookup)
+          .then(function (info) { job.cell.textContent = formatLotIntel(info); })
+          .catch(function () { job.cell.textContent = 'Lookup failed'; })
+          .then(function () {
+            lotDone++;
+            var msg = baseStatus + ' Fetching lot purchase data… (' + lotDone + '/' + lotJobs.length + ')' +
+              (job.lookup.kind === 'mont' ? ' — Maryland\'s state records API is slow (~1/sec), this can take several minutes for large result sets.' : '');
+            setStatus('#pm-status', lotDone < lotJobs.length ? msg : baseStatus + ' Lot purchase data complete.', 'ok');
+          });
+      });
+    }
   }
 
   $('#pm-run').addEventListener('click', function () {
