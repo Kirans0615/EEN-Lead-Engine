@@ -886,14 +886,53 @@
   // Legal Description splits an address into separate columns (house
   // number, direction, street base name, suffix) rather than one string —
   // so a pasted address has to be parsed into those parts to match it.
+  // Built from the actual 46 distinct ADRSUF codes Fairfax's data uses
+  // (queried live), not guessed — a guessed list missed "PIKE" entirely
+  // (e.g. Georgetown Pike), which is common in Fairfax/Great Falls.
   var OG_STREET_SUFFIX_MAP = {
-    STREET: 'ST', ST: 'ST', AVENUE: 'AVE', AVE: 'AVE', ROAD: 'RD', RD: 'RD',
-    DRIVE: 'DR', DR: 'DR', LANE: 'LN', LN: 'LN', COURT: 'CT', CT: 'CT',
-    PLACE: 'PL', PL: 'PL', BOULEVARD: 'BLVD', BLVD: 'BLVD', WAY: 'WAY',
-    CIRCLE: 'CIR', CIR: 'CIR', TERRACE: 'TER', TER: 'TER', TRAIL: 'TRL',
-    TRL: 'TRL', PARKWAY: 'PKWY', PKWY: 'PKWY', HIGHWAY: 'HWY', HWY: 'HWY',
-    LOOP: 'LOOP', PATH: 'PATH', RUN: 'RUN', GLEN: 'GLEN', CRESCENT: 'CRES',
-    CRES: 'CRES', SQUARE: 'SQ', SQ: 'SQ', ALLEY: 'ALY', ALY: 'ALY', POINT: 'PT', PT: 'PT'
+    ALLEY: 'ALY', ALY: 'ALY',
+    AVENUE: 'AVE', AVE: 'AVE',
+    BOULEVARD: 'BLVD', BLVD: 'BLVD',
+    CIRCLE: 'CIR', CIR: 'CIR',
+    CLOSE: 'CL', CL: 'CL',
+    COMMONS: 'CMNS', CMNS: 'CMNS',
+    CORRIDOR: 'CORR', CORR: 'CORR',
+    COURT: 'CT', CT: 'CT',
+    CENTER: 'CTR', CTR: 'CTR',
+    COVE: 'CV', CV: 'CV',
+    DRIVE: 'DR', DR: 'DR', DRIVES: 'DRS', DRS: 'DRS',
+    GREEN: 'GRN', GRN: 'GRN',
+    GROVE: 'GRV', GRV: 'GRV',
+    HEIGHTS: 'HTS', HTS: 'HTS',
+    HIGHWAY: 'HWY', HWY: 'HWY',
+    KNOLLS: 'KNLS', KNLS: 'KNLS',
+    LANE: 'LN', LN: 'LN',
+    LANDING: 'LNDG', LNDG: 'LNDG',
+    LOOP: 'LOOP',
+    MALL: 'MALL',
+    PARK: 'PARK',
+    PASS: 'PASS',
+    PATH: 'PATH',
+    PIKE: 'PIKE', TURNPIKE: 'TPKE', TPKE: 'TPKE',
+    PARKWAY: 'PKWY', PKWY: 'PKWY',
+    PLACE: 'PL', PL: 'PL',
+    PLAINS: 'PLNS', PLNS: 'PLNS',
+    PLAZA: 'PLZ', PLZ: 'PLZ',
+    ROAD: 'RD', RD: 'RD',
+    RIDGE: 'RDG', RDG: 'RDG',
+    ROW: 'ROW',
+    RUN: 'RUN',
+    SQUARE: 'SQ', SQ: 'SQ',
+    STREET: 'ST', ST: 'ST',
+    STATION: 'STA', STA: 'STA',
+    TERRACE: 'TER', TER: 'TER',
+    TRAIL: 'TRL', TRL: 'TRL', TR: 'TR',
+    TRACE: 'TRCE', TRCE: 'TRCE',
+    VALLEY: 'VLY', VLY: 'VLY',
+    VIEW: 'VW', VW: 'VW',
+    WALK: 'WALK',
+    WAY: 'WAY',
+    CROSSING: 'XING', XING: 'XING'
   };
   var OG_DIRECTIONS = { N: 1, S: 1, E: 1, W: 1, NE: 1, NW: 1, SE: 1, SW: 1 };
 
