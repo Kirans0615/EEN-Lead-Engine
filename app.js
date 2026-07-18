@@ -951,6 +951,13 @@
     });
   }
 
+  // The tool's known luxury teardown corridor — treated as one contiguous
+  // market. When an address resolves to one of these zips, search the whole
+  // corridor for comps rather than just that single zip; a single zip alone
+  // is often too sparse in recent flips (McLean 22102 verified: 0 in the
+  // last 24-48mo checked alone vs. real comps found once pooled with 22101).
+  var OG_LUXURY_ZIPS = ['22101', '22102', '22066', '22180', '22181', '22182', '22124'];
+
   $('#og-run').addEventListener('click', function () {
     var addressText = $('#og-address').value.trim();
     var subjectAcres = parseFloat($('#og-acres').value) || 0;
@@ -972,13 +979,14 @@
         }
         var match = matches[0];
         subjectParid = match.PARID;
-        $('#og-zips').value = match.ZIP1;
+        var searchZips = OG_LUXURY_ZIPS.indexOf(match.ZIP1) >= 0 ? OG_LUXURY_ZIPS.slice() : [match.ZIP1];
+        $('#og-zips').value = searchZips.join(',');
         var confirmAddr = buildCityAddr(match);
-        setStatus('#og-status', '<span class="spin"></span>Found ' + escapeHtml(confirmAddr) + ' — finding candidate parcels…');
+        setStatus('#og-status', '<span class="spin"></span>Found ' + escapeHtml(confirmAddr) + ' — searching ' + searchZips.join(', ') + ' for comps…');
       });
     })().then(function () {
       var zips = zipList($('#og-zips').value);
-      if (!zips.length) { setStatus('#og-status', 'Enter at least one 5-digit zip, or a subject address above.', 'err'); return; }
+      if (!zips.length) { setStatus('#og-status', 'Couldn\'t determine a search area — enter a subject address above, or a zip below.', 'err'); return; }
       if (!addressText) setStatus('#og-status', '<span class="spin"></span>Finding candidate parcels…');
 
       return Promise.all([

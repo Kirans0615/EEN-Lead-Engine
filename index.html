@@ -621,12 +621,12 @@
             <div class="full">
               <label class="f-label" for="og-address">Subject address (Fairfax, VA)</label>
               <input type="text" id="og-address" placeholder="e.g. 1234 Some St, McLean VA" autocomplete="off">
-              <p class="helper">Looks up the exact parcel, auto-fills its zip below, and excludes it from its own comps. Leave blank to just browse a zip area instead.</p>
+              <p class="helper">Just enter the address — it identifies the parcel, figures out the zip(s) to search on its own, and excludes the subject from its own comps. You don't need to touch the zip field below.</p>
             </div>
             <div>
-              <label class="f-label" for="og-zips">Zip code(s)</label>
+              <label class="f-label" for="og-zips">Zip code(s) <span class="muted" style="font-weight:400;">— only if searching without an address</span></label>
               <input type="text" id="og-zips" value="22101,22102,22066,22180,22181,22182,22124" autocomplete="off">
-              <p class="helper">Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton. Auto-filled if you enter an address above.</p>
+              <p class="helper">Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton. Overwritten automatically if you enter an address above.</p>
             </div>
             <div>
               <label class="f-label" for="og-acres">Subject lot size (acres)</label>
