@@ -680,7 +680,50 @@
      out to be unreliable in testing (permits on a parcel can be
      unrelated later work, not the original teardown/rebuild).
      ============================================================ */
-  function fetchFairfaxCandidateParcels(zips) {
+  // Gating candidates on "has a Residential New permit on file" turned out to
+  // throw away the vast majority of the real candidate pool (verified live:
+  // one zip had 9,327 total parcels but only 42 carried a matching permit
+  // record — permits are incomplete/lag real teardown-rebuild activity).
+  // The real gate should just be "is this parcel roughly the right size, in
+  // the right zip" — every parcel that size is a legitimate candidate for
+  // showing a flip pattern in its own sale history, permit or no permit.
+  // Legal Description has reliable ZIP1/address on every parcel, so query it
+  // directly by zip + acreage band (paginated — a single zip alone can return
+  // 400+ matches, well past the server's 1000-row page size for wider bands).
+  function fetchZipAcreageCandidates(zips, subjectAcres) {
+    var lo = subjectAcres * 0.5, hi = subjectAcres * 2;
+    var zipsIn = "('" + zips.join("','") + "')";
+    var where = 'ZIP1 IN' + zipsIn + ' AND ACRES >= ' + lo + ' AND ACRES <= ' + hi;
+
+    function fetchPage(offset, acc) {
+      var params = {
+        where: where,
+        outFields: 'PARID,ACRES,ZIP1,CITYNAME,ADRNO,ADRDIR,ADRSTR,ADRSUF,ADRSUF2',
+        resultRecordCount: '1000',
+        resultOffset: String(offset),
+        f: 'json'
+      };
+      var url = FFX_LEGAL_URL + '?' + new URLSearchParams(params).toString();
+      return fetchJson(url).then(function (data) {
+        if (data.error) throw new Error(data.error.message || 'query rejected');
+        var feats = data.features || [];
+        feats.forEach(function (f) {
+          var a = f.attributes;
+          if (!a.PARID || !a.ACRES) return;
+          acc.push({ parcelId: a.PARID, acres: a.ACRES, legal: a });
+        });
+        return feats.length === 1000 ? fetchPage(offset + 1000, acc) : acc;
+      });
+    }
+    return fetchPage(0, []);
+  }
+
+  // Supplemental source: parcels with an on-record new-construction permit
+  // whose Legal Description ACRES happens to be null (~90% of parcels in a
+  // typical zip, confirmed empirically) so they'd never surface from the
+  // query above. Small, bounded list — safe to do the slower per-parcel
+  // Legal+Land Data join only for these.
+  function fetchFairfaxPermitCandidates(zips) {
     var zipsIn = "('" + zips.join("','") + "')";
     var params = {
       where: 'ZIP_CODE IN' + zipsIn + " AND APPTYPEALIAS='Residential New'",
@@ -787,6 +830,11 @@
     return best;
   }
 
+  function buildCityAddr(legal) {
+    var addr = [legal.ADRNO, legal.ADRDIR, legal.ADRSTR, legal.ADRSUF, legal.ADRSUF2].filter(Boolean).join(' ');
+    return addr + (legal.CITYNAME ? ', ' + legal.CITYNAME : '') + (legal.ZIP1 ? ' ' + legal.ZIP1 : '');
+  }
+
   function ogMedian(arr) {
     var s = arr.slice().sort(function (x, y) { return x - y; });
     var mid = Math.floor(s.length / 2);
@@ -847,29 +895,45 @@
     $('#og-rows').innerHTML = '';
     setStatus('#og-status', '<span class="spin"></span>Finding candidate parcels…');
 
-    fetchFairfaxCandidateParcels(zips).then(function (candidates) {
+    Promise.all([
+      fetchZipAcreageCandidates(zips, subjectAcres),
+      fetchFairfaxPermitCandidates(zips)
+    ]).then(function (results) {
+      var direct = results[0];
+      var permitOnly = results[1];
+      var seen = {};
+      var candidates = [];
+      direct.forEach(function (c) { seen[c.parcelId] = true; candidates.push(c); });
+      permitOnly.forEach(function (c) {
+        if (seen[c.parcelId]) return;
+        seen[c.parcelId] = true;
+        candidates.push({ parcelId: c.parcelId, acres: null, legal: null });
+      });
+
       if (!candidates.length) {
-        setStatus('#og-status', 'No new-construction permits found in that zip — try a wider zip list.', 'err');
+        setStatus('#og-status', 'No parcels found in that zip/size range — try a wider zip list.', 'err');
         return;
       }
       var comps = [];
       var done = 0;
       setStatus('#og-status', '<span class="spin"></span>Checking ' + candidates.length + ' candidate parcels for flip comps… (0/' + candidates.length + ')');
 
-      runPool(candidates, 6, function (cand) {
-        return Promise.all([fetchParcelSalesHistory(cand.parcelId), fetchParcelLegal(cand.parcelId), fetchParcelAcresFallback(cand.parcelId)])
+      runPool(candidates, 10, function (cand) {
+        var work = cand.legal
+          ? fetchParcelSalesHistory(cand.parcelId).then(function (sales) { return [sales, cand.legal, cand.acres]; })
+          : Promise.all([fetchParcelSalesHistory(cand.parcelId), fetchParcelLegal(cand.parcelId), fetchParcelAcresFallback(cand.parcelId)])
+              .then(function (res) { return [res[0], res[1], res[2] || (res[1] && res[1].ACRES) || null]; });
+
+        return work
           .then(function (res) {
-            var sales = res[0], legal = res[1], landAcres = res[2];
-            var acres = landAcres || (legal && legal.ACRES) || null;
+            var sales = res[0], legal = res[1], acres = res[2];
             if (!legal || !acres) return;
             var acresRatio = acres / subjectAcres;
             if (acresRatio < 0.5 || acresRatio > 2) return;
             var flip = detectFlipComp(sales, months);
             if (!flip) return;
-            var addr = [legal.ADRNO, legal.ADRDIR, legal.ADRSTR, legal.ADRSUF, legal.ADRSUF2].filter(Boolean).join(' ');
-            var cityAddr = addr + (legal.CITYNAME ? ', ' + legal.CITYNAME : '') + (legal.ZIP1 ? ' ' + legal.ZIP1 : '');
             var comp = {
-              cityAddr: cityAddr, acres: acres,
+              cityAddr: buildCityAddr(legal), acres: acres,
               purchasePrice: flip.purchasePrice, purchaseDt: flip.purchaseDt,
               resalePrice: flip.resalePrice, resaleDt: flip.resaleDt,
               holdMonths: flip.holdMonths, multiple: flip.multiple,
@@ -886,8 +950,8 @@
               setStatus('#og-status', '<span class="spin"></span>Checking candidate parcels for flip comps… (' + done + '/' + candidates.length + ')');
             } else {
               setStatus('#og-status', comps.length
-                ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found.'
-                : 'No qualifying flip comps for that lot size in this zip / look-back. Builder teardown-rebuilds cluster on smaller in-fill lots — try adding neighboring zips, a longer look-back, or a smaller subject acreage.', comps.length ? 'ok' : 'err');
+                ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found (across ' + candidates.length + ' candidate parcels).'
+                : 'No qualifying flip comps for that lot size in this zip / look-back (across ' + candidates.length + ' candidate parcels checked). Builder teardown-rebuilds cluster on smaller in-fill lots — try adding neighboring zips, a longer look-back, or a smaller subject acreage.', comps.length ? 'ok' : 'err');
             }
           });
       });
