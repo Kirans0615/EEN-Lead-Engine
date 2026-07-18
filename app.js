@@ -704,6 +704,16 @@
     });
   }
 
+  // Fairfax's sales table logs EVERY recorded deed instrument, not just
+  // arm's-length sales — $0/nominal "no consideration" transfers, pending
+  // verification, corrective deeds, foreclosures, etc. show up interleaved
+  // with real sales. Left in, these break flip detection: a real purchase
+  // and its real resale stop being *adjacent* array entries whenever one of
+  // these noise records sits between them, so the pair is never evaluated.
+  // A price floor well above nominal/token deeds (seen up to ~$1,200) and
+  // well below any real Fairfax land or home sale filters this out cleanly.
+  var SALE_NOISE_FLOOR = 50000;
+
   function fetchParcelSalesHistory(parcelId) {
     var url = FFX_SALES_URL + '?' + new URLSearchParams({
       where: "PARID='" + parcelId + "'",
@@ -714,9 +724,11 @@
     }).toString();
     return fetchJson(url).then(function (data) {
       if (data.error) throw new Error(data.error.message || 'query rejected');
-      return (data.features || []).map(function (f) {
-        return { price: f.attributes.PRICE || 0, saleDt: f.attributes.SALEDT };
-      });
+      return (data.features || [])
+        .map(function (f) {
+          return { price: f.attributes.PRICE || 0, saleDt: f.attributes.SALEDT };
+        })
+        .filter(function (s) { return s.price >= SALE_NOISE_FLOOR && s.saleDt; });
     });
   }
 
@@ -875,7 +887,7 @@
             } else {
               setStatus('#og-status', comps.length
                 ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found.'
-                : 'No qualifying flip comps in that window/size range — try a wider look-back or zip list.', comps.length ? 'ok' : 'err');
+                : 'No qualifying flip comps for that lot size in this zip / look-back. Builder teardown-rebuilds cluster on smaller in-fill lots — try adding neighboring zips, a longer look-back, or a smaller subject acreage.', comps.length ? 'ok' : 'err');
             }
           });
       });
