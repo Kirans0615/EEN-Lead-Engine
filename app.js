@@ -413,6 +413,7 @@
   var FFX_BUILDING_PERMITS_URL = 'https://www.fairfaxcounty.gov/lambert/rest/services/LDS/DevelopmentTracker/FeatureServer/5/query';
   var FFX_SALES_URL = 'https://services1.arcgis.com/ioennV6PpG5Xodq0/ArcGIS/rest/services/OpenData_A5/FeatureServer/1/query';
   var FFX_LAND_URL = 'https://services1.arcgis.com/ioennV6PpG5Xodq0/ArcGIS/rest/services/OpenData_A6/FeatureServer/3/query';
+  var FFX_LEGAL_URL = 'https://services1.arcgis.com/ioennV6PpG5Xodq0/ArcGIS/rest/services/OpenData_A7/FeatureServer/1/query';
 
   function fmtMoney(n) {
     n = parseInt(n, 10) || 0;
@@ -664,6 +665,222 @@
     setStatus('#lu-status', '', '');
     performSkipTrace(p.addr, p.city, p.state, p.zip, this, function (html) {
       $('#lu-panel').innerHTML = html;
+    });
+  });
+
+  /* ============================================================
+     LAND OFFER GENERATOR — Fairfax, VA only. Uses the county's live
+     new-construction permits as a candidate list of parcels, then
+     cross-references each parcel's FULL sale history (a different
+     system than the permit feed) for a "flip comp": a sale followed
+     6-36 months later by a resale at 1.8x+ — the signature of a
+     builder buying land, tearing down, building, and selling. This
+     pattern is detected directly from the sales data itself; trying
+     to correlate flips to a specific permit by date proximity turned
+     out to be unreliable in testing (permits on a parcel can be
+     unrelated later work, not the original teardown/rebuild).
+     ============================================================ */
+  function fetchFairfaxCandidateParcels(zips) {
+    var zipsIn = "('" + zips.join("','") + "')";
+    var params = {
+      where: 'ZIP_CODE IN' + zipsIn + " AND APPTYPEALIAS='Residential New'",
+      outFields: 'PARCEL_ID,ADDRESS_1,ZIP_CODE',
+      orderByFields: 'SUBMITTED_DATE DESC',
+      resultRecordCount: '500',
+      f: 'json'
+    };
+    var url = FFX_BUILDING_PERMITS_URL + '?' + new URLSearchParams(params).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error) throw new Error(data.error.message || 'query rejected');
+      var seen = {};
+      var out = [];
+      (data.features || []).forEach(function (f) {
+        var a = f.attributes;
+        if (!a.PARCEL_ID || seen[a.PARCEL_ID]) return;
+        seen[a.PARCEL_ID] = true;
+        out.push({ parcelId: a.PARCEL_ID });
+      });
+      return out;
+    });
+  }
+
+  function fetchParcelSalesHistory(parcelId) {
+    var url = FFX_SALES_URL + '?' + new URLSearchParams({
+      where: "PARID='" + parcelId + "'",
+      outFields: 'PRICE,SALEDT',
+      orderByFields: 'SALEDT ASC',
+      resultRecordCount: '20',
+      f: 'json'
+    }).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error) throw new Error(data.error.message || 'query rejected');
+      return (data.features || []).map(function (f) {
+        return { price: f.attributes.PRICE || 0, saleDt: f.attributes.SALEDT };
+      });
+    });
+  }
+
+  function fetchParcelLegal(parcelId) {
+    var url = FFX_LEGAL_URL + '?' + new URLSearchParams({
+      where: "PARID='" + parcelId + "'",
+      outFields: 'ZIP1,CITYNAME,ACRES,ADRNO,ADRDIR,ADRSTR,ADRSUF,ADRSUF2',
+      resultRecordCount: '1',
+      f: 'json'
+    }).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error || !data.features || !data.features.length) return null;
+      return data.features[0].attributes;
+    });
+  }
+
+  // Legal Description's own ACRES field is unreliable (null for many parcels,
+  // confirmed empirically) — Land Data is the consistent source, so fetch both
+  // and prefer Land Data's acreage, falling back to Legal's only if needed.
+  function fetchParcelAcresFallback(parcelId) {
+    var url = FFX_LAND_URL + '?' + new URLSearchParams({
+      where: "PARID='" + parcelId + "'",
+      outFields: 'ACRES',
+      resultRecordCount: '1',
+      f: 'json'
+    }).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error || !data.features || !data.features.length) return null;
+      return data.features[0].attributes.ACRES || null;
+    });
+  }
+
+  var MS_PER_MONTH = 30.44 * 24 * 3600 * 1000;
+
+  // Finds the most recent qualifying "bought low, resold high, in a plausible
+  // teardown-rebuild timeframe" pair anywhere in a parcel's sale history.
+  function detectFlipComp(sales, monthsBack) {
+    var cutoff = Date.now() - monthsBack * MS_PER_MONTH;
+    var best = null;
+    for (var i = 0; i < sales.length - 1; i++) {
+      var a = sales[i], b = sales[i + 1];
+      if (!a.price || a.price <= 0 || !a.saleDt || !b.saleDt) continue;
+      var holdMonths = (b.saleDt - a.saleDt) / MS_PER_MONTH;
+      if (holdMonths < 6 || holdMonths > 36) continue;
+      var multiple = b.price / a.price;
+      if (multiple < 1.8) continue;
+      if (a.saleDt < cutoff) continue;
+      if (!best || a.saleDt > best.purchaseDt) {
+        best = {
+          purchasePrice: a.price, purchaseDt: a.saleDt,
+          resalePrice: b.price, resaleDt: b.saleDt,
+          holdMonths: holdMonths, multiple: multiple
+        };
+      }
+    }
+    return best;
+  }
+
+  function ogMedian(arr) {
+    var s = arr.slice().sort(function (x, y) { return x - y; });
+    var mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  }
+
+  function renderOfferGenRow(comp) {
+    $('#og-wrap').hidden = false;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + escapeHtml(comp.cityAddr) + '</td>' +
+      '<td style="white-space:nowrap;">' + fmtMoney(comp.purchasePrice) + ' · ' + fmtIso(comp.purchaseDt) + '</td>' +
+      '<td style="white-space:nowrap;">' + fmtMoney(comp.resalePrice) + ' · ' + fmtIso(comp.resaleDt) + '</td>' +
+      '<td>' + comp.holdMonths.toFixed(0) + ' mo</td>' +
+      '<td>' + comp.multiple.toFixed(2) + '×</td>' +
+      '<td>' + fmtMoney(comp.perAcre) + '</td>' +
+      '<td>' + pipeBtn(comp.cityAddr, 'Land Offer Generator — Fairfax, VA',
+        'Builder land comp: bought ' + fmtMoney(comp.purchasePrice) + ', resold ' + fmtMoney(comp.resalePrice) +
+        ' (' + comp.holdMonths.toFixed(0) + 'mo hold, ' + comp.multiple.toFixed(2) + '× multiple)') + '</td>';
+    $('#og-rows').appendChild(tr);
+  }
+
+  function renderOfferGenSuggestion(comps, subjectAcres) {
+    var box = $('#og-result');
+    box.hidden = false;
+    var perAcres = comps.map(function (c) { return c.perAcre; });
+    var med = ogMedian(perAcres);
+    var lo = Math.min.apply(null, perAcres);
+    var hi = Math.max.apply(null, perAcres);
+    var suggested = med * subjectAcres;
+    var conservative = lo * subjectAcres;
+    var aggressive = hi * subjectAcres;
+    var html = '';
+    html += row('Comps used', comps.length + ' qualifying flip' + (comps.length > 1 ? 's' : ''));
+    html += row('Median land value', fmtMoney(med) + ' / acre');
+    html += row('Range across comps', fmtMoney(lo) + ' – ' + fmtMoney(hi) + ' / acre');
+    html += row('Suggested land offer (median × ' + subjectAcres + ' ac)', fmtMoney(suggested), true);
+    html += row('Conservative — aggressive range', fmtMoney(conservative) + ' – ' + fmtMoney(aggressive));
+    html += '<div class="row"><button type="button" class="btn ghost small" id="og-send">Send ' + fmtMoney(suggested) + ' to Deal Analyzer →</button></div>';
+    box.innerHTML = html;
+    $('#og-send').addEventListener('click', function () {
+      $('#td-lot').value = Math.round(suggested);
+      setMode('teardown');
+      $('#analyzer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('Sent ' + fmtMoney(suggested) + ' to Deal Analyzer');
+    });
+  }
+
+  $('#og-run').addEventListener('click', function () {
+    var zips = zipList($('#og-zips').value);
+    if (!zips.length) { setStatus('#og-status', 'Enter at least one 5-digit zip.', 'err'); return; }
+    var subjectAcres = parseFloat($('#og-acres').value) || 0;
+    if (!subjectAcres) { setStatus('#og-status', 'Enter the subject lot size in acres.', 'err'); return; }
+    var months = parseInt($('#og-months').value, 10);
+
+    $('#og-wrap').hidden = true;
+    $('#og-result').hidden = true;
+    $('#og-rows').innerHTML = '';
+    setStatus('#og-status', '<span class="spin"></span>Finding candidate parcels…');
+
+    fetchFairfaxCandidateParcels(zips).then(function (candidates) {
+      if (!candidates.length) {
+        setStatus('#og-status', 'No new-construction permits found in that zip — try a wider zip list.', 'err');
+        return;
+      }
+      var comps = [];
+      var done = 0;
+      setStatus('#og-status', '<span class="spin"></span>Checking ' + candidates.length + ' candidate parcels for flip comps… (0/' + candidates.length + ')');
+
+      runPool(candidates, 6, function (cand) {
+        return Promise.all([fetchParcelSalesHistory(cand.parcelId), fetchParcelLegal(cand.parcelId), fetchParcelAcresFallback(cand.parcelId)])
+          .then(function (res) {
+            var sales = res[0], legal = res[1], landAcres = res[2];
+            var acres = landAcres || (legal && legal.ACRES) || null;
+            if (!legal || !acres) return;
+            var acresRatio = acres / subjectAcres;
+            if (acresRatio < 0.5 || acresRatio > 2) return;
+            var flip = detectFlipComp(sales, months);
+            if (!flip) return;
+            var addr = [legal.ADRNO, legal.ADRDIR, legal.ADRSTR, legal.ADRSUF, legal.ADRSUF2].filter(Boolean).join(' ');
+            var cityAddr = addr + (legal.CITYNAME ? ', ' + legal.CITYNAME : '') + (legal.ZIP1 ? ' ' + legal.ZIP1 : '');
+            var comp = {
+              cityAddr: cityAddr, acres: acres,
+              purchasePrice: flip.purchasePrice, purchaseDt: flip.purchaseDt,
+              resalePrice: flip.resalePrice, resaleDt: flip.resaleDt,
+              holdMonths: flip.holdMonths, multiple: flip.multiple,
+              perAcre: flip.purchasePrice / acres
+            };
+            comps.push(comp);
+            renderOfferGenRow(comp);
+            renderOfferGenSuggestion(comps, subjectAcres);
+          })
+          .catch(function () { /* one bad parcel shouldn't kill the whole scan */ })
+          .then(function () {
+            done++;
+            if (done < candidates.length) {
+              setStatus('#og-status', '<span class="spin"></span>Checking candidate parcels for flip comps… (' + done + '/' + candidates.length + ')');
+            } else {
+              setStatus('#og-status', comps.length
+                ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found.'
+                : 'No qualifying flip comps in that window/size range — try a wider look-back or zip list.', comps.length ? 'ok' : 'err');
+            }
+          });
+      });
+    }).catch(function (err) {
+      setStatus('#og-status', 'Fairfax endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
     });
   });
 

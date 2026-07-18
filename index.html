@@ -49,6 +49,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         Property Lookup
       </a>
+      <a class="nav-link" href="#offergen" data-nav>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Land Offer Generator
+      </a>
       <a class="nav-link" href="#stacker" data-nav>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
         Signal Stacker
@@ -594,6 +598,61 @@
             </div>
           </div>
           <div id="lu-panel"></div>
+        </div>
+      </section>
+
+      <!-- ============ LAND OFFER GENERATOR ============ -->
+      <section class="panel" id="offergen">
+        <span class="eyebrow">Stage 01 · Source — Fairfax, VA</span>
+        <h2 class="section-heading">Land Offer Generator</h2>
+        <p class="section-sub">What did builders actually pay for land nearby, before they tore it down and sold the finished home? Enter a subject lot and this finds real Fairfax County comps — a short hold period followed by a big resale jump is the signature of a genuine builder flip, not just normal appreciation — and turns them into a suggested land offer.</p>
+
+        <div class="how-it-works">
+          <p class="hiw-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> How this tool works</p>
+          <p>Pulls every Fairfax new-construction permit in your zip(s) as a candidate list, then cross-references each parcel's full sale history (Fairfax tax records — a different system than the permit feed) for a <strong>flip comp</strong>: a sale followed 6–36 months later by a resale at 1.8× or more — the land-purchase-then-finished-sale pattern, e.g. a lot bought for $900K that sold as a finished home for $3M. Only comps within roughly half-to-double your subject's lot size, and land-purchased within your look-back window, count toward the suggested offer. Fairfax only — Montgomery, MD doesn't publish enough repeat-sale history per parcel for this to work reliably yet.</p>
+        </div>
+
+        <div class="card tool">
+          <div class="tool__head">
+            <h3>Subject Property</h3>
+            <p class="muted">Tell it about the lot you're evaluating — it finds nearby builder comps and suggests what to offer for the land.</p>
+          </div>
+          <div class="calc-grid tool-grid">
+            <div>
+              <label class="f-label" for="og-zips">Zip code(s)</label>
+              <input type="text" id="og-zips" value="22101,22102,22066,22180,22181,22182,22124" autocomplete="off">
+              <p class="helper">Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton.</p>
+            </div>
+            <div>
+              <label class="f-label" for="og-acres">Subject lot size (acres)</label>
+              <input type="number" id="og-acres" inputmode="decimal" value="0.25" min="0.01" step="0.01">
+              <p class="helper">Only comps within ~half-to-double this size count toward the suggested offer.</p>
+            </div>
+            <div>
+              <label class="f-label" for="og-months">Land purchase look-back</label>
+              <select id="og-months">
+                <option value="12">12 months</option>
+                <option value="24" selected>24 months</option>
+                <option value="36">36 months</option>
+                <option value="48">48 months</option>
+              </select>
+              <p class="helper">Only comps where the builder bought the land within this window.</p>
+            </div>
+            <div class="full" style="margin-top:14px;">
+              <button type="button" class="btn" id="og-run">Find comps &amp; generate offer</button>
+              <span class="tool-status" id="og-status" role="status"></span>
+            </div>
+          </div>
+
+          <div id="og-result" class="result-rows hidden"></div>
+
+          <div class="table-wrap" id="og-wrap" hidden>
+            <table aria-label="Land flip comps">
+              <thead><tr><th>Address</th><th>Land purchase</th><th>Resold</th><th>Hold</th><th>Multiple</th><th>$/acre</th><th><span class="sr-only">Add</span></th></tr></thead>
+              <tbody id="og-rows"></tbody>
+            </table>
+          </div>
+          <p class="helper" style="margin-top:10px;">Source: Fairfax County GIS &amp; Mapping Services open data (permits, sales, and legal/parcel records cross-referenced live). Candidate scan can take a minute or two — each candidate parcel needs its own sales-history lookup.</p>
         </div>
       </section>
 
