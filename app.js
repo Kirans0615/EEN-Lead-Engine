@@ -883,9 +883,76 @@
     });
   }
 
+  // Legal Description splits an address into separate columns (house
+  // number, direction, street base name, suffix) rather than one string —
+  // so a pasted address has to be parsed into those parts to match it.
+  var OG_STREET_SUFFIX_MAP = {
+    STREET: 'ST', ST: 'ST', AVENUE: 'AVE', AVE: 'AVE', ROAD: 'RD', RD: 'RD',
+    DRIVE: 'DR', DR: 'DR', LANE: 'LN', LN: 'LN', COURT: 'CT', CT: 'CT',
+    PLACE: 'PL', PL: 'PL', BOULEVARD: 'BLVD', BLVD: 'BLVD', WAY: 'WAY',
+    CIRCLE: 'CIR', CIR: 'CIR', TERRACE: 'TER', TER: 'TER', TRAIL: 'TRL',
+    TRL: 'TRL', PARKWAY: 'PKWY', PKWY: 'PKWY', HIGHWAY: 'HWY', HWY: 'HWY',
+    LOOP: 'LOOP', PATH: 'PATH', RUN: 'RUN', GLEN: 'GLEN', CRESCENT: 'CRES',
+    CRES: 'CRES', SQUARE: 'SQ', SQ: 'SQ', ALLEY: 'ALY', ALY: 'ALY', POINT: 'PT', PT: 'PT'
+  };
+  var OG_DIRECTIONS = { N: 1, S: 1, E: 1, W: 1, NE: 1, NW: 1, SE: 1, SW: 1 };
+
+  function parseOgAddress(text) {
+    var tokens = text.toUpperCase().replace(/[.,#]/g, ' ').split(/\s+/).filter(Boolean);
+    var cut = tokens.length;
+    for (var i = 0; i < tokens.length; i++) {
+      if (/^\d{5}$/.test(tokens[i]) || tokens[i] === 'VA' || tokens[i] === 'VIRGINIA') { cut = i; break; }
+    }
+    tokens = tokens.slice(0, cut);
+    if (!tokens.length) return null;
+    var houseNo = parseInt(tokens[0], 10);
+    if (!houseNo) return null;
+    var rest = tokens.slice(1);
+    if (!rest.length) return null;
+
+    // Scan for the LAST token matching a known street suffix rather than
+    // just checking the final token — a trailing city name (e.g. "Dead Run
+    // Dr, McLean") otherwise gets swallowed into the street name.
+    var sufIdx = -1;
+    for (var j = rest.length - 1; j >= 0; j--) {
+      if (OG_STREET_SUFFIX_MAP[rest[j]]) { sufIdx = j; break; }
+    }
+    var suf = null, streetTokens;
+    if (sufIdx >= 0) {
+      suf = OG_STREET_SUFFIX_MAP[rest[sufIdx]];
+      streetTokens = rest.slice(0, sufIdx);
+    } else {
+      streetTokens = rest;
+    }
+    if (streetTokens.length && OG_DIRECTIONS[streetTokens[0]]) streetTokens = streetTokens.slice(1);
+    var streetName = streetTokens.join(' ');
+    return streetName ? { houseNo: houseNo, suf: suf, streetName: streetName } : null;
+  }
+
+  function fetchParcelByAddress(addressText) {
+    var parsed = parseOgAddress(addressText);
+    if (!parsed) return Promise.resolve([]);
+    var where = 'ADRNO=' + parsed.houseNo + " AND ADRSTR LIKE '%" + parsed.streetName.replace(/'/g, "''") + "%'";
+    var params = {
+      where: where,
+      outFields: 'PARID,ADRNO,ADRDIR,ADRSTR,ADRSUF,ADRSUF2,CITYNAME,ZIP1,ACRES',
+      resultRecordCount: '10',
+      f: 'json'
+    };
+    var url = FFX_LEGAL_URL + '?' + new URLSearchParams(params).toString();
+    return fetchJson(url).then(function (data) {
+      if (data.error) throw new Error(data.error.message || 'query rejected');
+      var feats = (data.features || []).map(function (f) { return f.attributes; });
+      if (feats.length > 1 && parsed.suf) {
+        var narrowed = feats.filter(function (a) { return a.ADRSUF === parsed.suf; });
+        if (narrowed.length) feats = narrowed;
+      }
+      return feats;
+    });
+  }
+
   $('#og-run').addEventListener('click', function () {
-    var zips = zipList($('#og-zips').value);
-    if (!zips.length) { setStatus('#og-status', 'Enter at least one 5-digit zip.', 'err'); return; }
+    var addressText = $('#og-address').value.trim();
     var subjectAcres = parseFloat($('#og-acres').value) || 0;
     if (!subjectAcres) { setStatus('#og-status', 'Enter the subject lot size in acres.', 'err'); return; }
     var months = parseInt($('#og-months').value, 10);
@@ -893,70 +960,97 @@
     $('#og-wrap').hidden = true;
     $('#og-result').hidden = true;
     $('#og-rows').innerHTML = '';
-    setStatus('#og-status', '<span class="spin"></span>Finding candidate parcels…');
 
-    Promise.all([
-      fetchZipAcreageCandidates(zips, subjectAcres),
-      fetchFairfaxPermitCandidates(zips)
-    ]).then(function (results) {
-      var direct = results[0];
-      var permitOnly = results[1];
-      var seen = {};
-      var candidates = [];
-      direct.forEach(function (c) { seen[c.parcelId] = true; candidates.push(c); });
-      permitOnly.forEach(function (c) {
-        if (seen[c.parcelId]) return;
-        seen[c.parcelId] = true;
-        candidates.push({ parcelId: c.parcelId, acres: null, legal: null });
+    var subjectParid = null;
+
+    (function resolveAddress() {
+      if (!addressText) return Promise.resolve();
+      setStatus('#og-status', '<span class="spin"></span>Looking up ' + escapeHtml(addressText) + '…');
+      return fetchParcelByAddress(addressText).then(function (matches) {
+        if (!matches.length) {
+          throw new Error('ADDRESS_NOT_FOUND');
+        }
+        var match = matches[0];
+        subjectParid = match.PARID;
+        $('#og-zips').value = match.ZIP1;
+        var confirmAddr = buildCityAddr(match);
+        setStatus('#og-status', '<span class="spin"></span>Found ' + escapeHtml(confirmAddr) + ' — finding candidate parcels…');
       });
+    })().then(function () {
+      var zips = zipList($('#og-zips').value);
+      if (!zips.length) { setStatus('#og-status', 'Enter at least one 5-digit zip, or a subject address above.', 'err'); return; }
+      if (!addressText) setStatus('#og-status', '<span class="spin"></span>Finding candidate parcels…');
 
-      if (!candidates.length) {
-        setStatus('#og-status', 'No parcels found in that zip/size range — try a wider zip list.', 'err');
-        return;
-      }
-      var comps = [];
-      var done = 0;
-      setStatus('#og-status', '<span class="spin"></span>Checking ' + candidates.length + ' candidate parcels for flip comps… (0/' + candidates.length + ')');
+      return Promise.all([
+        fetchZipAcreageCandidates(zips, subjectAcres),
+        fetchFairfaxPermitCandidates(zips)
+      ]).then(function (results) {
+        var direct = results[0];
+        var permitOnly = results[1];
+        var seen = {};
+        var candidates = [];
+        direct.forEach(function (c) {
+          if (subjectParid && c.parcelId === subjectParid) return;
+          seen[c.parcelId] = true; candidates.push(c);
+        });
+        permitOnly.forEach(function (c) {
+          if (seen[c.parcelId] || (subjectParid && c.parcelId === subjectParid)) return;
+          seen[c.parcelId] = true;
+          candidates.push({ parcelId: c.parcelId, acres: null, legal: null });
+        });
 
-      runPool(candidates, 10, function (cand) {
-        var work = cand.legal
-          ? fetchParcelSalesHistory(cand.parcelId).then(function (sales) { return [sales, cand.legal, cand.acres]; })
-          : Promise.all([fetchParcelSalesHistory(cand.parcelId), fetchParcelLegal(cand.parcelId), fetchParcelAcresFallback(cand.parcelId)])
-              .then(function (res) { return [res[0], res[1], res[2] || (res[1] && res[1].ACRES) || null]; });
+        if (!candidates.length) {
+          setStatus('#og-status', 'No parcels found in that zip/size range — try a wider zip list.', 'err');
+          return;
+        }
+        var comps = [];
+        var done = 0;
+        setStatus('#og-status', '<span class="spin"></span>Checking ' + candidates.length + ' candidate parcels for flip comps… (0/' + candidates.length + ')');
 
-        return work
-          .then(function (res) {
-            var sales = res[0], legal = res[1], acres = res[2];
-            if (!legal || !acres) return;
-            var acresRatio = acres / subjectAcres;
-            if (acresRatio < 0.5 || acresRatio > 2) return;
-            var flip = detectFlipComp(sales, months);
-            if (!flip) return;
-            var comp = {
-              cityAddr: buildCityAddr(legal), acres: acres,
-              purchasePrice: flip.purchasePrice, purchaseDt: flip.purchaseDt,
-              resalePrice: flip.resalePrice, resaleDt: flip.resaleDt,
-              holdMonths: flip.holdMonths, multiple: flip.multiple,
-              perAcre: flip.purchasePrice / acres
-            };
-            comps.push(comp);
-            renderOfferGenRow(comp);
-            renderOfferGenSuggestion(comps, subjectAcres);
-          })
-          .catch(function () { /* one bad parcel shouldn't kill the whole scan */ })
-          .then(function () {
-            done++;
-            if (done < candidates.length) {
-              setStatus('#og-status', '<span class="spin"></span>Checking candidate parcels for flip comps… (' + done + '/' + candidates.length + ')');
-            } else {
-              setStatus('#og-status', comps.length
-                ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found (across ' + candidates.length + ' candidate parcels).'
-                : 'No qualifying flip comps for that lot size in this zip / look-back (across ' + candidates.length + ' candidate parcels checked). Builder teardown-rebuilds cluster on smaller in-fill lots — try adding neighboring zips, a longer look-back, or a smaller subject acreage.', comps.length ? 'ok' : 'err');
-            }
-          });
+        runPool(candidates, 10, function (cand) {
+          var work = cand.legal
+            ? fetchParcelSalesHistory(cand.parcelId).then(function (sales) { return [sales, cand.legal, cand.acres]; })
+            : Promise.all([fetchParcelSalesHistory(cand.parcelId), fetchParcelLegal(cand.parcelId), fetchParcelAcresFallback(cand.parcelId)])
+                .then(function (res) { return [res[0], res[1], res[2] || (res[1] && res[1].ACRES) || null]; });
+
+          return work
+            .then(function (res) {
+              var sales = res[0], legal = res[1], acres = res[2];
+              if (!legal || !acres) return;
+              var acresRatio = acres / subjectAcres;
+              if (acresRatio < 0.5 || acresRatio > 2) return;
+              var flip = detectFlipComp(sales, months);
+              if (!flip) return;
+              var comp = {
+                cityAddr: buildCityAddr(legal), acres: acres,
+                purchasePrice: flip.purchasePrice, purchaseDt: flip.purchaseDt,
+                resalePrice: flip.resalePrice, resaleDt: flip.resaleDt,
+                holdMonths: flip.holdMonths, multiple: flip.multiple,
+                perAcre: flip.purchasePrice / acres
+              };
+              comps.push(comp);
+              renderOfferGenRow(comp);
+              renderOfferGenSuggestion(comps, subjectAcres);
+            })
+            .catch(function () { /* one bad parcel shouldn't kill the whole scan */ })
+            .then(function () {
+              done++;
+              if (done < candidates.length) {
+                setStatus('#og-status', '<span class="spin"></span>Checking candidate parcels for flip comps… (' + done + '/' + candidates.length + ')');
+              } else {
+                setStatus('#og-status', comps.length
+                  ? comps.length + ' qualifying flip comp' + (comps.length > 1 ? 's' : '') + ' found (across ' + candidates.length + ' candidate parcels).'
+                  : 'No qualifying flip comps for that lot size in this zip / look-back (across ' + candidates.length + ' candidate parcels checked). Builder teardown-rebuilds cluster on smaller in-fill lots — try adding neighboring zips, a longer look-back, or a smaller subject acreage.', comps.length ? 'ok' : 'err');
+              }
+            });
+        });
       });
     }).catch(function (err) {
-      setStatus('#og-status', 'Fairfax endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
+      if (err.message === 'ADDRESS_NOT_FOUND') {
+        setStatus('#og-status', 'Couldn\'t find that address in Fairfax records — check the spelling/house number, or just use the zip field instead.', 'err');
+      } else {
+        setStatus('#og-status', 'Fairfax endpoint error (' + escapeHtml(err.message) + ') — retry in a minute.', 'err');
+      }
     });
   });
 

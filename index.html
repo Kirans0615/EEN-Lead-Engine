@@ -618,10 +618,15 @@
             <p class="muted">Tell it about the lot you're evaluating — it finds nearby builder comps and suggests what to offer for the land.</p>
           </div>
           <div class="calc-grid tool-grid">
+            <div class="full">
+              <label class="f-label" for="og-address">Subject address (Fairfax, VA)</label>
+              <input type="text" id="og-address" placeholder="e.g. 1234 Some St, McLean VA" autocomplete="off">
+              <p class="helper">Looks up the exact parcel, auto-fills its zip below, and excludes it from its own comps. Leave blank to just browse a zip area instead.</p>
+            </div>
             <div>
               <label class="f-label" for="og-zips">Zip code(s)</label>
               <input type="text" id="og-zips" value="22101,22102,22066,22180,22181,22182,22124" autocomplete="off">
-              <p class="helper">Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton.</p>
+              <p class="helper">Fairfax luxury zips: 22101/22102 McLean, 22066 Great Falls, 22180/22181/22182 Vienna, 22124 Oakton. Auto-filled if you enter an address above.</p>
             </div>
             <div>
               <label class="f-label" for="og-acres">Subject lot size (acres)</label>
